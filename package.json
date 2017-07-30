@@ -1,0 +1,21 @@
+{
+  "name": "dialog-differ",
+  "version": "1.0.0",
+  "description": "__WORK IN PROGRESS__",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Kris Skarbo",
+  "license": "ISC",
+  "dependencies": {
+    "base64-img": "^1.0.3",
+    "image-diff": "^1.6.3",
+    "node-horseman": "^3.3.0",
+    "phantom": "^2.0.10",
+    "tmp": "0.0.31"
+  },
+  "devDependencies": {
+    "chai": "^4.1.0"
+  }
+}

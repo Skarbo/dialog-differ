@@ -1,0 +1,6 @@
+node_modules/
+.idea/
+.DS_Store
+.gitignore
+src/.DS_Store
+src/test/.DS_Store

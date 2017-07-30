@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Suite Viewer</title>
+    <style>
+        textarea {
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+        }
+
+        img {
+            border: 1px dashed #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<div>
+    <textarea rows="10"></textarea>
+    <button type="button" onclick="doParse()">Do parse</button>
+</div>
+<div>
+    <table>
+        <thead>
+        <th>Id</th>
+        <th>Size</th>
+        <th>Status</th>
+        <th>Original</th>
+        <th>Diff</th>
+        <th>Current</th>
+        </thead>
+        <tbody id="container"></tbody>
+    </table>
+</div>
+
+<script type="text/javascript">
+    function doParse() {
+        const value = document.querySelector( 'textarea' ).value;
+        /** @type {Suite} */
+        const suite = JSON.parse( value );
+        console.log( 'Suite', suite );
+
+        const containerElement = document.querySelector( '#container' );
+        containerElement.innerHTML = '';
+
+        for ( let id in suite.collections ) {
+            const collection = suite.collections[id];
+
+            collection.result.differ.forEach( ( { index, status, base64 } ) => {
+                const trElement = document.createElement( 'tr' );
+                trElement.innerHTML = `
+                <td>${collection.id}</td>
+                <td>${suite.options.sizes[index].width}x${suite.options.sizes[index].height}</td>
+                <td>${collection.result.status}</td>
+                <td><img src="${collection.original.screenshots[index].base64}" /></td>
+                <td><img src="${base64}" /></td>
+                <td><img src="${collection.current.screenshots[index].base64}" /></td>
+                `;
+
+                containerElement.appendChild( trElement );
+            } );
+        }
+    }
+</script>
+</body>
+</html>

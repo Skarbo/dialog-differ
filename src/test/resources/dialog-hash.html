@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dialog hash</title>
+</head>
+<body>
+<div id="search"></div>
+<div id="hash"></div>
+<script type="text/javascript">
+    function onHashChange() {
+        document.querySelector( '#hash' ).innerText = window.location.hash.substr( 1 );
+        document.body.classList.add( 'active' );
+    }
+
+    window.addEventListener( 'hashchange', onHashChange, false );
+
+    document.querySelector( '#search' ).innerText = window.location.search;
+
+    onHashChange();
+</script>
+</body>
+</html>
