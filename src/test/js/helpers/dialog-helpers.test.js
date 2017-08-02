@@ -197,32 +197,5 @@ describe( 'SuiteHelper', () => {
                     expect( err.message ).to.match( /dialog \d.*?missing/i );
                 } );
         } );
-
-        it( 'original dialogs should have correct version', () => {
-            /** @type {Suite} */
-            const suite = {
-                options: {
-                    sizes: [{ width: 1, height: 1 }],
-                    originalVersion: '1',
-                    currentVersion: '2'
-                },
-                original: [{
-                    version: '3',
-                    id: 'id',
-                    url: 'id',
-                }],
-                current: [{}]
-            };
-
-            return SuiteHelper
-                .validateSuite( suite )
-                .then( result => {
-                    expect( result ).to.be.false;
-                } )
-                .catch( err => {
-                    expect( err.code ).to.equal( ERROR_CONSTANTS.SUITE_ORIGINAL_DIALOG_ERROR );
-                    expect( err.message ).to.match( /dialog \d.*?incorrect version/i );
-                } );
-        } );
     } );
 } );

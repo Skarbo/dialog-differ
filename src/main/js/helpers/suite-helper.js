@@ -99,10 +99,6 @@ module.exports.validateSuite = ( suite ) => {
         if ( !dialog.version || !dialog.id || !dialog.url ) {
             return ErrorHelper.createError( null, `Dialog ${i} is missing version, id or url`, code );
         }
-
-        if ( dialog.version !== version ) {
-            return ErrorHelper.createError( null, `Dialog ${i} has incorrect version`, code );
-        }
     };
 
     if ( !suite.original || suite.original.length === 0 ) {

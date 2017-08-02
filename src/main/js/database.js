@@ -175,7 +175,7 @@ module.exports.saveDialogsResult = ( options, dialogOriginal, dialogCurrent, dia
                     currentVersion: dialogsResult.currentVersion,
                     options: SuiteHelper.createUniqueOptionsId( options ),
                     result: dialogsResult.result,
-                    differ: [],
+                    differ: dialogsResult.differ,
                 } )
                 .write();
 

@@ -49,8 +49,8 @@ const suite = { // see 'Suite' structure
 };
 
 dialogDiffer.diff( suite ) // see 'Suite' structure
-    .then( suiteResult ) // see 'SuiteResult' structure
-    .catch( error );
+    .then( suiteResult => {} ) // see 'SuiteResult' structure
+    .catch( error => {} );
 ```
 
 ## Structure

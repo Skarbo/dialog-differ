@@ -87,11 +87,9 @@ function evaluateStopCSSAnimations() {
  * @param {String} hash
  */
 function evaluateRedirectHash( hash ) {
-    return function () {
-        /*eslint-disable */
-        document.location.hash = hash;
-        /*eslint-enable */
-    }
+    /*eslint-disable */
+    document.location.hash = hash;
+    /*eslint-enable */
 }
 
 /**
@@ -311,7 +309,7 @@ function snapDialogsWithHashFromHorseman( options, dialogs ) {
 
             // change hash
             chain = chain
-                .evaluate( evaluateRedirectHash( dialog.hash ) );
+                .evaluate( evaluateRedirectHash, dialog.hash );
 
             // wait for selector
             if ( dialog.waitForSelector ) {
