@@ -55,7 +55,9 @@ dialogDiffer.diff( suite )
 
 ## Structure
 
-### Suite
+### Input
+
+#### Suite
 
 | Property | Value | Description |
 | --- | --- | --- |
@@ -63,7 +65,7 @@ dialogDiffer.diff( suite )
 | original | [`Array<Suite.Dialog>`](#suite-dialog) | Original dialogs |
 | current | [`Array<Suite.Dialog>`](#suite-dialog) | Current dialogs |
 
-### Suite Options
+#### Suite Options
 
 | Property | Value | Description | Example |
 | --- | --- | --- | --- |
@@ -74,7 +76,7 @@ dialogDiffer.diff( suite )
 | \[isForceDiff] | `Boolean` | Force diff | `false`| 
 | \[database] | `String` | Path to database | `~/database.json`| 
 
-### Suite Dialog
+#### Suite Dialog
 
 | Property | Value | Description | Example |
 | --- | --- | --- | --- |
@@ -85,7 +87,9 @@ dialogDiffer.diff( suite )
 | \[waitForSelector] | `String` | Wait for selector | `body.active` |
 | \[timeout] | `Number` | Timeout before taking snap (ms) | `250` |
 
-### Suite Result
+### Result
+
+#### Suite Result
 
 | Property | Value | Description | Example |
 | --- | --- | --- | --- |
@@ -93,7 +97,7 @@ dialogDiffer.diff( suite )
 | results | [`Object{id: Suite.DialogsResult}`](#suite-dialogs-result) | Dialog results | `{ 'first': { ... } }` |
 
 
-### Suite Dialog Result
+#### Suite Dialog Result
 
 Extends [Suite Dialog](#suite-dialog)
 
@@ -101,7 +105,7 @@ Extends [Suite Dialog](#suite-dialog)
 | --- | --- | --- | --- |
 | screenshots | `Array<base64: String, width: String, height: String>` | Dialog screenshots | `[ { base64: 'data:image/png;base64,...', width: 460, height: 350 } ]` |
 
-### Suite Dialogs Result
+#### Suite Dialogs Result
 
 | Property | Value | Description | Example |
 | --- | --- | --- | --- |
@@ -113,7 +117,7 @@ Extends [Suite Dialog](#suite-dialog)
 | result | `String` | Diff result | `{identical|changed|deleted|new}` |
 | differ | [`Array<id: Suite.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
 
-### Suite Dialog Result Diff
+#### Suite Dialog Result Diff
 
 | Property | Value | Description | Example |
 | --- | --- | --- | --- |
