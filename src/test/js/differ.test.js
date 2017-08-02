@@ -9,7 +9,7 @@ const logger = require( '../../main/js/logger' );
 const db = require( '../../main/js/database' );
 
 const RESOURCES_FOLDER = path.resolve( __dirname, '../resources' );
-const CONSTANTS = require( '../../main/js/constants/differ-constants' );
+const DIFFER_CONSTANTS = require( '../../main/js/constants/differ-constants' );
 
 function createDialogURL( dialog ) {
     return `file://${path.resolve( RESOURCES_FOLDER, dialog )}`;
@@ -86,19 +86,19 @@ describe( 'differ', () => {
                     expect( dialogResult ).to.be.an( 'object' );
                     expect( dialogResult.original ).to.be.an( 'object' );
                     expect( dialogResult.current ).to.be.an( 'object' );
-                    expect( dialogResult.status ).to.equal( CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( dialogResult.result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
                     expect( dialogResult.differ ).to.be.an( 'array' );
                     expect( dialogResult.differ ).to.have.lengthOf( 2 );
 
                     expect( dialogResult.differ[0] ).to.be.an( 'object' );
                     expect( dialogResult.differ[0].index ).to.equal( 0 );
                     expect( dialogResult.differ[0].base64 ).to.be.an( 'string' );
-                    expect( dialogResult.differ[0].status ).to.equal( CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( dialogResult.differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
 
                     expect( dialogResult.differ[1] ).to.be.an( 'object' );
                     expect( dialogResult.differ[1].index ).to.equal( 1 );
                     expect( dialogResult.differ[1].base64 ).to.be.an( 'string' );
-                    expect( dialogResult.differ[1].status ).to.equal( CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( dialogResult.differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
                 } );
         } ).timeout( 4000 )
     } );
@@ -148,9 +148,49 @@ describe( 'differ', () => {
 
             return snap.snapSuite( suite )
                 .then( () => differ.differSuite( suite ) )
-                .then( suite => {
-                    expect( suite ).to.be.an( 'object' );
-                    // console.log( JSON.stringify( suite, null, 2 ) );
+                .then( suiteResult => {
+                    // console.log( JSON.stringify( suiteResult, null, 2 ) );
+                    expect( suiteResult ).to.be.an( 'object' );
+                    expect( suite.options ).to.deep.equal( suiteResult.options );
+                    expect( suiteResult.results ).to.be.an( 'object' );
+                    expect( Object.keys( suiteResult.results ) ).to.have.length( 2 );
+
+                    expect( suiteResult.results[dialogOneOriginal.id] ).to.deep.equal( suiteResult.results[dialogOneCurrent.id] );
+                    expect( suiteResult.results[dialogTwoOriginal.id] ).to.deep.equal( suiteResult.results[dialogTwoCurrent.id] );
+
+                    let dialogId = dialogOneOriginal.id;
+                    expect( suiteResult.results[dialogId].dialogId ).to.equal( dialogId );
+                    expect( suiteResult.results[dialogId].original ).to.deep.equal( dialogOneOriginal );
+                    expect( suiteResult.results[dialogId].current ).to.deep.equal( dialogOneCurrent );
+                    expect( suiteResult.results[dialogId].originalVersion ).to.equal( dialogOneOriginal.version );
+                    expect( suiteResult.results[dialogId].currentVersion ).to.equal( dialogOneCurrent.version );
+                    expect( suiteResult.results[dialogId].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( suiteResult.results[dialogId].differ ).to.have.length( 2 );
+
+                    expect( suiteResult.results[dialogId].differ[0].index ).to.equal( 0 );
+                    expect( suiteResult.results[dialogId].differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( suiteResult.results[dialogId].differ[0].base64 ).to.be.a( 'string' );
+
+                    expect( suiteResult.results[dialogId].differ[1].index ).to.equal( 1 );
+                    expect( suiteResult.results[dialogId].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( suiteResult.results[dialogId].differ[1].base64 ).to.be.a( 'string' );
+
+                    dialogId = dialogTwoOriginal.id;
+                    expect( suiteResult.results[dialogId].dialogId ).to.equal( dialogId );
+                    expect( suiteResult.results[dialogId].original ).to.deep.equal( dialogTwoOriginal );
+                    expect( suiteResult.results[dialogId].current ).to.deep.equal( dialogTwoCurrent );
+                    expect( suiteResult.results[dialogId].originalVersion ).to.equal( dialogTwoOriginal.version );
+                    expect( suiteResult.results[dialogId].currentVersion ).to.equal( dialogTwoCurrent.version );
+                    expect( suiteResult.results[dialogId].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( suiteResult.results[dialogId].differ ).to.have.length( 2 );
+
+                    expect( suiteResult.results[dialogId].differ[0].index ).to.equal( 0 );
+                    expect( suiteResult.results[dialogId].differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( suiteResult.results[dialogId].differ[0].base64 ).to.be.a( 'string' );
+
+                    expect( suiteResult.results[dialogId].differ[1].index ).to.equal( 1 );
+                    expect( suiteResult.results[dialogId].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( suiteResult.results[dialogId].differ[1].base64 ).to.be.a( 'string' );
                 } );
         } )
     } );

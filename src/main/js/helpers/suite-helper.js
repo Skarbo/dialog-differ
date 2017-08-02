@@ -4,10 +4,13 @@ const ErrorHelper = require( './error-helper' );
 
 /**
  * @param {Suite} suite
- * @returns {Suite}
+ * @returns {SuiteResult}
  */
 module.exports.prepareSuiteResults = ( suite ) => {
-    const results = {};
+    const suiteResult = {
+        options: suite.options,
+        results: {}
+    };
 
     /**
      * @param {String} dialogId
@@ -20,28 +23,27 @@ module.exports.prepareSuiteResults = ( suite ) => {
             original: null,
             originalVersion: null,
             currentVersion: null,
-            result: null
+            result: null,
+            differ: []
         };
     };
 
     suite.current.forEach( dialog => {
-        results[dialog.id] = createEmptyResult( dialog.id );
-        results[dialog.id].current = dialog;
-        results[dialog.id].originalVersion = dialog.version;
+        suiteResult.results[dialog.id] = createEmptyResult( dialog.id );
+        suiteResult.results[dialog.id].current = dialog;
+        suiteResult.results[dialog.id].originalVersion = dialog.version;
     } );
 
     suite.original.forEach( dialog => {
-        if ( !results[dialog.id] ) {
-            results[dialog.id] = createEmptyResult( dialog.id );
+        if ( !suiteResult.results[dialog.id] ) {
+            suiteResult.results[dialog.id] = createEmptyResult( dialog.id );
         }
 
-        results[dialog.id].original = dialog;
-        results[dialog.id].originalVersion = dialog.version;
+        suiteResult.results[dialog.id].original = dialog;
+        suiteResult.results[dialog.id].originalVersion = dialog.version;
     } );
 
-    suite.results = results;
-
-    return suite;
+    return suiteResult;
 };
 
 /**

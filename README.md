@@ -57,13 +57,13 @@ dialogDiffer.diff( suite )
 
 ### Suite
 
-| Property | Value | Description | Example |
+| Property | Value | Description |
 | --- | --- | --- | --- |
-| options | [`Suite.Options`](#suite-options) |
-| original | [`Array<Suite.Dialog>`](#suite-dialog) |
-| current | [`Array<Suite.Dialog>`](#suite-dialog) |
+| options | [`Suite.Options`](#suite-options) | Suite options |
+| original | [`Array<Suite.Dialog>`](#suite-dialog) | Original dialogs |
+| current | [`Array<Suite.Dialog>`](#suite-dialog) | Current dialogs |
 
-### Suite options
+### Suite Options
 
 | Property | Value | Description | Example |
 | --- | --- | --- | --- |
@@ -73,6 +73,53 @@ dialogDiffer.diff( suite )
 | \[isForceSnap] | `Boolean` | Force snap | `false`| 
 | \[isForceDiff] | `Boolean` | Force diff | `false`| 
 | \[database] | `String` | Path to database | `~/database.json`| 
+
+### Suite Dialog
+
+| Property | Value | Description | Example |
+| --- | --- | --- | --- |
+| version | `String` | Dialog version | `1.0.1` |
+| id | `String` | Dialog id | `first` |
+| url | `String` | Dialog URL | `http://example.com/1.0.1/dialog-first.html` |
+| \[hash] | `String` | URL hash | `#hash` |
+| \[waitForSelector] | `String` | Wait for selector | `body.active` |
+| \[timeout] | `Number` | Timeout before taking snap (ms) | `250` |
+
+### Suite Result
+
+| Property | Value | Description | Example |
+| --- | --- | --- | --- |
+| options | [`Suite.Options`](#suite-options) | Suite options |
+| results | [`Object{id: Suite.DialogsResult}`](#suite-dialogs-result) | Dialog results | `{ 'first': { ... } }` |
+
+
+### Suite Dialog Result
+
+Extends [Suite Dialog](#suite-dialog)
+
+| Property | Value | Description | Example |
+| --- | --- | --- | --- |
+| screenshots | `Array<base64: String, width: String, height: String>` | Dialog screenshots | `[ { base64: 'data:image/png;base64,...', width: 460, height: 350 } ]` |
+
+### Suite Dialogs Result
+
+| Property | Value | Description | Example |
+| --- | --- | --- | --- |
+| dialogId | `String` | Dialog id | `first` |
+| original | [`Suite.DialogResult`](#suite-dialog-result) | Original dialog | `{ id: 'first', version: '1.0.1', url: ..., screenshots: [ ... ] }` |
+| current | [`Suite.DialogResult`](#suite-dialog-result) | Current dialog | `{ id: 'first', version: '1.0.2', url: ..., screenshots: [ ... ] }` |
+| originalVersion | `String` | Original version | `1.0.1` |
+| currentVersion | `String` | Current version | `1.0.2` |
+| result | `String` | Diff result | `{identical|changed|deleted|new}` |
+| differ | [`Array<id: Suite.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
+
+### Suite Dialog Result Diff
+
+| Property | Value | Description | Example |
+| --- | --- | --- | --- |
+| index | `Number` | Index | `0` |
+| result | `String` | Diff result | `{identical|changed|deleted|new}` |
+| base64 | `String` | Diff image | `data:image/png;base64,...` |
 
 ## Tests
 

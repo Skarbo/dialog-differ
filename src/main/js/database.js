@@ -30,11 +30,11 @@ const DIALOG_DIFFS_RESULT_DB = 'dialog_diffs_result';
  */
 
 /**
- * @typedef {Object} Database.DialogResult
+ * @typedef {Object} Database.DialogsResult
  * @property {String} dialogId
  * @property {String} originalVersion
  * @property {String} currentVersion
- * @property {String} status
+ * @property {String} result
  * @property {Array<Suite.DialogResultDiff>} differ
  * @memberOf Database
  */
@@ -161,28 +161,28 @@ module.exports.getDialogsScreenshots = ( dialogs ) => {
  * @param {Suite.Options} options
  * @param {Suite.Dialog} dialogOriginal
  * @param {Suite.Dialog} dialogCurrent
- * @param {Suite.DialogResult} dialogResult
- * @returns {Promise<{dialogResult: Suite.DialogResult, dialogResultDb: Database.DialogResult}>}
+ * @param {Suite.DialogsResult} dialogsResult
+ * @returns {Promise<{dialogsResult: Suite.DialogsResult, dialogsResultDb: Database.DialogsResult}>}
  */
-module.exports.saveDialogResult = ( options, dialogOriginal, dialogCurrent, dialogResult ) => {
+module.exports.saveDialogsResult = ( options, dialogOriginal, dialogCurrent, dialogsResult ) => {
     return new Promise( ( fulfill, reject ) => {
         try {
-            const dialogResultDb = db
+            const dialogsResultDb = db
                 .get( DIALOG_DIFFS_RESULT_DB )
                 .insert( {
-                    dialogId: dialogResult.dialogId,
-                    originalVersion: dialogResult.originalVersion,
-                    currentVersion: dialogResult.currentVersion,
+                    dialogId: dialogsResult.dialogId,
+                    originalVersion: dialogsResult.originalVersion,
+                    currentVersion: dialogsResult.currentVersion,
                     options: SuiteHelper.createUniqueOptionsId( options ),
-                    status: dialogResult.status,
+                    result: dialogsResult.result,
                     differ: [],
                 } )
                 .write();
 
-            fulfill( { dialogResult, dialogResultDb } );
+            fulfill( { dialogsResult: dialogsResult, dialogResultDb: dialogsResultDb } );
         }
         catch ( err ) {
-            reject( ErrorHelper.createError( err, 'Could not save dialogs diff result', ERROR_CONSTANTS.SAVE_DIALOGS_DIFF_RESULT_DB_ERROR, { options, dialogOriginal, dialogCurrent, dialogResult } ) );
+            reject( ErrorHelper.createError( err, 'Could not save dialogs diff result', ERROR_CONSTANTS.SAVE_DIALOGS_DIFF_RESULT_DB_ERROR, { options, dialogOriginal, dialogCurrent, dialogsResult } ) );
         }
     } );
 };
@@ -191,9 +191,9 @@ module.exports.saveDialogResult = ( options, dialogOriginal, dialogCurrent, dial
  * @param {Suite.Options} options
  * @param {Suite.Dialog|null} dialogOriginal
  * @param {Suite.Dialog|null} dialogCurrent
- * @returns {Promise<Database.DialogResult>}
+ * @returns {Promise<Database.DialogsResult>}
  */
-module.exports.getDialogResult = ( options, dialogOriginal, dialogCurrent ) => {
+module.exports.getDialogsResult = ( options, dialogOriginal, dialogCurrent ) => {
     return new Promise( ( fulfill, reject ) => {
         try {
             const dialogsDiffResultDb = db

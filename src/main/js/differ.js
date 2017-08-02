@@ -35,6 +35,25 @@ function prepareDialogScreenshots( dialog ) {
 }
 
 /**
+ * @param {Suite.Dialog|null} dialogOriginal
+ * @param {Suite.Dialog|null} dialogCurrent
+ * @param {String} result
+ * @param {Array<Suite.DialogResultDiff>} [differ]
+ * @return {Suite.DialogsResult}
+ */
+function createDialogsResult( dialogOriginal, dialogCurrent, result, differ = [] ) {
+    return {
+        dialogId: dialogOriginal && dialogOriginal.id || dialogCurrent && dialogCurrent.id,
+        original: dialogOriginal,
+        current: dialogCurrent,
+        originalVersion: dialogOriginal.version,
+        currentVersion: dialogCurrent.version,
+        result,
+        differ,
+    };
+}
+
+/**
  * @param {Suite.DialogScreenshot} screenshotOriginal
  * @param {Suite.DialogScreenshot} screenshotCurrent
  * @returns {Promise<{isIdentical: Boolean, base64: String|null}>}
@@ -82,38 +101,32 @@ module.exports.differDialogScreenshot = function ( screenshotOriginal, screensho
  * @param {Suite.Options} options
  * @param {Suite.Dialog|null} dialogOriginal
  * @param {Suite.Dialog|null} dialogCurrent
- * @returns {Promise<Suite.DialogResult>}
+ * @returns {Promise<Suite.DialogsResult>}
  */
 module.exports.differDialog = ( options, dialogOriginal, dialogCurrent ) => {
     if ( !dialogOriginal || !dialogCurrent ) {
-        return Promise.resolve( {
-            original: dialogOriginal,
-            current: dialogCurrent,
-            status: !dialogCurrent ? CONSTANTS.DELETED_STATUS_DIFFER : CONSTANTS.NEW_STATUS_DIFFER,
-            differ: []
-        } );
+        return Promise.resolve( createDialogsResult(
+            dialogOriginal,
+            dialogCurrent,
+            !dialogCurrent ? CONSTANTS.DELETED_STATUS_DIFFER : CONSTANTS.NEW_STATUS_DIFFER,
+            []
+        ) );
     }
 
     return new Promise( ( fulfill, reject ) => {
         db
-            .getDialogResult( options, dialogOriginal, dialogCurrent )
+            .getDialogsResult( options, dialogOriginal, dialogCurrent )
             .then( dialogResultDb => {
                 // use dialog result from database
                 if ( dialogResultDb && !options.isForceDiff ) {
                     logger.info( TAG, 'differDialog', 'Using dialogs \'%s\' and \'%s\' diff result from database', LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogId( dialogOriginal ), DialogHelper.createUniqueDialogId( dialogCurrent ) );
 
-                    /** @type {Suite.DialogResult} */
-                    const dialogResult = {
-                        dialogId: dialogResultDb.dialogId,
-                        original: dialogOriginal,
-                        current: dialogCurrent,
-                        originalVersion: dialogOriginal.version,
-                        currentVersion: dialogCurrent.version,
-                        status: dialogResultDb.status,
-                        differ: dialogResultDb.differ,
-                    };
-
-                    return Promise.resolve( dialogResult );
+                    return Promise.resolve( createDialogsResult(
+                        dialogOriginal,
+                        dialogCurrent,
+                        dialogResultDb.result,
+                        dialogResultDb.differ
+                    ) );
                 }
                 // get dialog result from image diff
                 else {
@@ -131,7 +144,7 @@ module.exports.differDialog = ( options, dialogOriginal, dialogCurrent ) => {
  * @param {Suite.Options} options
  * @param {Suite.Dialog|null} dialogOriginal
  * @param {Suite.Dialog|null} dialogCurrent
- * @returns {Promise<Suite.DialogResult>}
+ * @returns {Promise<Suite.DialogsResult>}
  */
 function differDialogWithImageDiff( options, dialogOriginal, dialogCurrent ) {
     return new Promise( ( fulfill, reject ) => {
@@ -146,67 +159,62 @@ function differDialogWithImageDiff( options, dialogOriginal, dialogCurrent ) {
                 } ) );
             } )
             .then( result => {
-                /** @type {Suite.DialogResult} */
-                const dialogResult = {
-                    dialogId: dialogOriginal.id,
-                    original: dialogOriginal,
-                    current: dialogCurrent,
-                    originalVersion: dialogOriginal.version,
-                    currentVersion: dialogCurrent.version,
-                    status: CONSTANTS.IDENTICAL_STATUS_DIFFER,
-                    differ: [],
-                };
+                /** @type {Suite.DialogsResult} */
+                const dialogsResult = createDialogsResult(
+                    dialogOriginal,
+                    dialogCurrent,
+                    CONSTANTS.IDENTICAL_STATUS_DIFFER,
+                    []
+                );
 
                 result.forEach( ( { isIdentical, base64 }, i ) => {
                     if ( !isIdentical ) {
-                        dialogResult.status = CONSTANTS.CHANGED_STATUS_DIFFER;
+                        dialogsResult.result = CONSTANTS.CHANGED_STATUS_DIFFER;
                     }
 
-                    dialogResult.differ.push( {
+                    dialogsResult.differ.push( {
                         index: i,
-                        status: isIdentical ? CONSTANTS.IDENTICAL_STATUS_DIFFER : CONSTANTS.CHANGED_STATUS_DIFFER,
+                        result: isIdentical ? CONSTANTS.IDENTICAL_STATUS_DIFFER : CONSTANTS.CHANGED_STATUS_DIFFER,
                         base64
                     } );
                 } );
 
-                return Promise.resolve( dialogResult );
+                return Promise.resolve( dialogsResult );
             } )
-            .then( dialogResult => db.saveDialogResult( options, dialogOriginal, dialogCurrent, dialogResult ) )
-            .then( ( { dialogResult } ) => fulfill( dialogResult ) )
+            .then( dialogsResult => db.saveDialogsResult( options, dialogOriginal, dialogCurrent, dialogsResult ) )
+            .then( ( { dialogsResult } ) => fulfill( dialogsResult ) )
             .catch( reject )
     } );
 }
 
 /**
  * @param {Suite} suite
- * @returns {Promise<Suite>}
+ * @returns {Promise<SuiteResult>}
  */
 module.exports.differSuite = ( suite ) => {
     return new Promise( ( fulfill, reject ) => {
-        SuiteHelper.prepareSuiteResults( suite );
+        /** @type {SuiteResult} */
+        const suiteResult = SuiteHelper.prepareSuiteResults( suite );
         logger.log( TAG, 'differSuite', 'Differ suite...' );
 
         Promise
             .all( Object
-                .keys( suite.results )
-                .map( dialogId => self.differDialog( suite.options, suite.results[dialogId].original, suite.results[dialogId].current ) )
+                .keys( suiteResult.results )
+                .map( dialogId => self.differDialog( suite.options, suiteResult.results[dialogId].original, suiteResult.results[dialogId].current ) )
             )
             .then( results => {
                 logger.log( TAG, 'differSuite', 'Diffed suite' );
 
                 results.forEach( dialogResult => {
-                    /** @type {Suite.DialogsResult} */
-                    const suiteResult = suite.results[dialogResult.dialogId];
-
-                    if ( suiteResult ) {
-                        suiteResult.result = dialogResult
+                    if ( suiteResult.results[dialogResult.dialogId] ) {
+                        suiteResult.results[dialogResult.dialogId] = dialogResult
                     }
                     else {
                         logger.error( TAG, 'differSuite', 'Suite result does not exist', dialogResult );
                     }
                 } );
 
-                fulfill( suite );
+                fulfill( suiteResult );
             } )
             .catch( reject );
     } );

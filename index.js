@@ -11,40 +11,28 @@
  * @property {String} base64
  * @property {Number} height
  * @property {Number} width
- * @property {String} [path]
- * @property {Function} [removeCallback]
+ * @property {String} [path] Injected
+ * @property {Function} [removeCallback] Injected
  * @memberOf Suite
  */
 
 /**
  * @typedef {Object} Suite.DialogResultDiff
  * @property {Number} index
- * @property {String} status
+ * @property {String} result
  * @property {String} base64
  * @memberOf Suite
  */
 
 /**
- * @typedef {Object} Suite.DialogResult
- * @property {String} dialogId
- * @property {Dialog} original
- * @property {Dialog} current
- * @property {Dialog} originalVersion
- * @property {Dialog} currentVersion
- * @property {String} status
- * @property {Array<Suite.DialogResultDiff>} differ
- * @memberOf Suite
- */
-
-/**
  * @typedef {Object} Suite.Dialog
- * @property {String} id
  * @property {String} version
+ * @property {String} id
  * @property {String} url
  * @property {String} [hash]
  * @property {String} [waitForSelector]
  * @property {Number} [timeout]
- * @property {Array<Suite.DialogScreenshot>} [screenshots]
+ * @property {Array<Suite.DialogScreenshot>} [screenshots] Injected
  * @memberOf Suite
  */
 
@@ -62,11 +50,12 @@
 /**
  * @typedef {Object} Suite.DialogsResult
  * @property {String} dialogId
- * @property {String} original
- * @property {String} current
+ * @property {Suite.Dialog} original
+ * @property {Suite.Dialog} current
  * @property {String} originalVersion
  * @property {String} currentVersion
- * @property {DialogResult} [result]
+ * @property {String} result
+ * @property {Array<Suite.DialogResultDiff>} differ
  * @memberOf Suite
  */
 
@@ -78,7 +67,8 @@
  */
 
 /**
- * @typedef {Suite} SuiteResult
+ * @typedef {Object} SuiteResult
+ * @property {Suite.Options} options
  * @property {{id: Suite.DialogsResult}} [results]
  */
 
