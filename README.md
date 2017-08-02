@@ -34,13 +34,10 @@ dialogDiffer.diff( suite )
 ### Suite options
 
 | Property | Value | Example | Description |
-| --- | --- |
+| --- | --- | --- | --- |
 | sizes | `Array<{ width: Number, height: Number }>` | `[ { width: 350, height: 250 } ]` | Sizes |
 | originalVersion | `String` | `1.0.1` |  Original version |
 | currentVersion | `String` | `1.0.2`| Current version |
-| \[isForceSnap\] | `Boolean` | `false`| Force snap |
-| \[isForceDiff\] | `Boolean` | `false`| Force diff |
-| \[database\] | `String` | `~/database.json`| Path to database |
 
 ## Tests
 
