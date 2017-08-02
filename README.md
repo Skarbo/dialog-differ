@@ -96,15 +96,6 @@ dialogDiffer.diff( suite )
 | options | [`Suite.Options`](#suite-options) | Suite options |
 | results | [`Object{id: Suite.DialogsResult}`](#suite-dialogs-result) | Dialog results | `{ 'first': { ... } }` |
 
-
-#### Suite Dialog Result
-
-Extends [Suite Dialog](#suite-dialog)
-
-| Property | Value | Description | Example |
-| --- | --- | --- | --- |
-| screenshots | `Array<base64: String, width: String, height: String>` | Dialog screenshots | `[ { base64: 'data:image/png;base64,...', width: 460, height: 350 } ]` |
-
 #### Suite Dialogs Result
 
 | Property | Value | Description | Example |
@@ -116,6 +107,14 @@ Extends [Suite Dialog](#suite-dialog)
 | currentVersion | `String` | Current version | `1.0.2` |
 | result | `String` | Diff result | `identical/changed/deleted/new` |
 | differ | [`Array<id: Suite.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
+
+#### Suite Dialog Result
+
+Extends [Suite Dialog](#suite-dialog)
+
+| Property | Value | Description | Example |
+| --- | --- | --- | --- |
+| screenshots | `Array<base64: String, width: String, height: String>` | Dialog screenshots | `[ { base64: 'data:image/png;base64,...', width: 460, height: 350 } ]` |
 
 #### Suite Dialog Result Diff
 
