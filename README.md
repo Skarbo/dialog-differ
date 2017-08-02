@@ -106,7 +106,7 @@ dialogDiffer.diff( suite )
 | originalVersion | `String` | Original version | `1.0.1` |
 | currentVersion | `String` | Current version | `1.0.2` |
 | result | `String` | Diff result | `identical/changed/deleted/new` |
-| differ | [`Array<id: Suite.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
+| differ | [`Object<id: Suite.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
 
 #### Suite Dialog Result
 
