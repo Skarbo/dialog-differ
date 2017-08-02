@@ -140,17 +140,18 @@ Extends JS `Error`
 
 | Property | Description |
 | --- | --- |
-| unexpected-error | Unexpected error |
+| `unexpected-error` | Unexpected error |
+
 **TODO** More errors
 
 #### Differ Constants
 
 | Property | Description |
 | --- | --- |
-| identical | Identical dialog/screenshot |
-| changed | Changed dialog/screenshot |
-| new | New dialog/screenshot |
-| deleted | Deleted dialog/screenshot |
+| `identical` | Identical dialog/screenshot |
+| `changed` | Changed dialog/screenshot |
+| `new` | New dialog/screenshot |
+| `deleted` | Deleted dialog/screenshot |
 
 ## Tests
 
