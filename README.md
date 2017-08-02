@@ -57,9 +57,11 @@ dialogDiffer.diff( suite )
 
 ### Suite
 
-| Property |
-| --- |
-| options |
+| Property | Value | Description | Example |
+| --- | --- | --- | --- |
+| options | [`Suite.Options`](#suite-options) |
+| original | [`Array<Suite.Dialog>`](#suite-dialog) |
+| current | [`Array<Suite.Dialog>`](#suite-dialog) |
 
 ### Suite options
 
@@ -68,9 +70,9 @@ dialogDiffer.diff( suite )
 | sizes | `Array<{ width: Number, height: Number }>` | Sizes | `[ { width: 460, height: 350 } ]`  | 
 | originalVersion | `String` | Original version | `1.0.1` |
 | currentVersion | `String` | Current version | `1.0.2`|
-| [isForceSnap] | `Boolean` | Force snap | `false`| 
-| [isForceDiff] | `Boolean` | Force diff | `false`| 
-| [database] | `String` | Path to database | `~/database.json`| 
+| \[isForceSnap] | `Boolean` | Force snap | `false`| 
+| \[isForceDiff] | `Boolean` | Force diff | `false`| 
+| \[database] | `String` | Path to database | `~/database.json`| 
 
 ## Tests
 
