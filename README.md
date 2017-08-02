@@ -114,7 +114,7 @@ Extends [Suite Dialog](#suite-dialog)
 | current | [`Suite.DialogResult`](#suite-dialog-result) | Current dialog | `{ id: 'first', version: '1.0.2', url: ..., screenshots: [ ... ] }` |
 | originalVersion | `String` | Original version | `1.0.1` |
 | currentVersion | `String` | Current version | `1.0.2` |
-| result | `String` | Diff result | `{identical\|changed\|deleted\|new}` |
+| result | `String` | Diff result | `{identical/changed/deleted/new}` |
 | differ | [`Array<id: Suite.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
 
 #### Suite Dialog Result Diff
@@ -122,7 +122,7 @@ Extends [Suite Dialog](#suite-dialog)
 | Property | Value | Description | Example |
 | --- | --- | --- | --- |
 | index | `Number` | Index | `0` |
-| result | `String` | Diff result | `{identical\|changed\|deleted\|new}` |
+| result | `String` | Diff result | `{identical/changed/deleted/new}` |
 | base64 | `String` | Diff image | `data:image/png;base64,...` |
 
 ## Tests
