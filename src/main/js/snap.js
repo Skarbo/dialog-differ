@@ -1,24 +1,71 @@
 const Horseman = require( 'node-horseman' );
 
-Horseman.registerAction( 'dialogScreenshot', function ( dialog, size ) {
-    return this
-        .screenshotBase64( 'PNG' )
-        .then( result => {
-            dialog.screenshots.push( {
-                width: size.width,
-                height: size.height,
-                base64: `data:image/png;base64,${result}`
-            } );
+const logger = require( './logger' );
+const db = require( './database' );
 
-            return dialog;
-        } )
-} );
+const LOGGER_CONSTANTS = require( './constants/logger-constants' );
+
+const DialogHelper = require( './helpers/dialog-helper' );
+
+const TAG = 'Snap';
+const self = this;
+
+module.exports.TAG = TAG;
+
+Horseman.registerAction( 'dialogScreenshot',
+    /**
+     * @param {Suite.Dialog} dialog
+     * @param {{height: Number, width: Number}} size
+     * @return {Promise<Suite.Dialog>}
+     */
+    function ( dialog, size ) {
+        const self = this;
+
+        return new Promise( ( fulfill ) => {
+            return db
+                .getDialogScreenshot( dialog, {
+                    width: size.width,
+                    height: size.height
+                } )
+                .then( ( dialogScreenshotDb ) => {
+                    // use screenshot from database
+                    if ( dialogScreenshotDb ) {
+                        logger.info( TAG, 'dialogScreenshot', 'Using screenshot from database \'%s\'', LOGGER_CONSTANTS.SCREENSHOT_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogScreenshotId( dialog, {
+                            width: size.width,
+                            height: size.height
+                        } ) );
+
+                        dialog.screenshots.push( DialogHelper.createDialogScreenshot( size.width, size.height, dialogScreenshotDb.base64 ) );
+
+                        fulfill();
+                        return;
+                    }
+
+                    // take a screenshot
+                    logger.info( TAG, 'dialogScreenshot', 'Taking screenshot \'%s\'', LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER, DialogHelper.createUniqueDialogScreenshotId( dialog, { width: size.width, height: size.height } ) );
+
+                    return self
+                        .screenshotBase64( 'PNG' )
+                        .then( result => {
+                            /** @type {Suite.DialogScreenshot} */
+                            const dialogScreenshot = DialogHelper.createDialogScreenshot( size.width, size.height, `data:image/png;base64,${result}` );
+
+                            dialog.screenshots.push( dialogScreenshot );
+
+                            // save screenshot to database
+                            return db.saveDialogScreenshot( dialog, dialogScreenshot );
+                        } )
+                        .then( fulfill );
+                } )
+        } );
+    } );
 
 /**
- * Stop stop CSS animations
+ * Stop CSS animations
  *  This will run in PhantomJS environment
  */
-function stopCSSAnimations() {
+function evaluateStopCSSAnimations() {
+    /*eslint-disable */
     const css = '* { animation: none!important; -webkit-animation: none!important }',
         head = document.head || document.getElementsByTagName( 'head' )[0],
         style = document.createElement( 'style' );
@@ -31,11 +78,25 @@ function stopCSSAnimations() {
     }
 
     head.appendChild( style );
+    /*eslint-enable */
 }
 
 /**
- * @param {Array<Dialog>} dialogs
- * @returns {Array<Dialog|Array<Dialog>>}
+ * Redirects location hash
+ *  This will run in PhantomJS environment
+ * @param {String} hash
+ */
+function evaluateRedirectHash( hash ) {
+    return function () {
+        /*eslint-disable */
+        document.location.hash = hash;
+        /*eslint-enable */
+    }
+}
+
+/**
+ * @param {Array<Suite.Dialog>} dialogs
+ * @returns {Array<Suite.Dialog|Array<Suite.Dialog>>}
  */
 function collectDialogs( dialogs ) {
     const collection = {};
@@ -57,8 +118,28 @@ function collectDialogs( dialogs ) {
 }
 
 /**
+ * @param {Suite} suite
+ * @return {Promise<Suite>}
+ */
+module.exports.snapSuite = ( suite ) => {
+    return new Promise( ( fulfill, reject ) => {
+        logger.log( TAG, 'snapSuite', 'Snapping suite..' );
+
+        Promise
+            .all( [
+                self.snapSuiteDialogs( suite.options, suite.original ),
+                self.snapSuiteDialogs( suite.options, suite.current ),
+            ] )
+            .then( () => (logger.log( TAG, 'snapSuite', 'Snapped suite' ), true) )
+            .then( () => fulfill( suite ) )
+            .catch( reject )
+    } );
+};
+
+/**
  * @param {Suite.Options} options
- * @param {Array<Dialog>} dialogs
+ * @param {Array<Suite.Dialog>} dialogs
+ * @return {Promise<Array<Suite.Dialog>>}
  */
 module.exports.snapSuiteDialogs = ( options, dialogs ) => {
     return new Promise( ( fulfill, reject ) => {
@@ -67,10 +148,10 @@ module.exports.snapSuiteDialogs = ( options, dialogs ) => {
         Promise
             .all( dialogCollection.map( par => {
                 if ( Array.isArray( par ) ) {
-                    return this.snapDialogsWithHash( options, par );
+                    return self.snapDialogsWithHash( options, par );
                 }
                 else {
-                    return this.snapDialog( options, par );
+                    return self.snapDialog( options, par );
                 }
             } ) )
             .then( result => {
@@ -82,10 +163,140 @@ module.exports.snapSuiteDialogs = ( options, dialogs ) => {
 
 /**
  * @param {Suite.Options} options
- * @param {Array<Dialog>} dialogs Dialogs with given hash and same URL
- * @returns {Promise<Array<Dialog>>}
+ * @param {Array<Suite.Dialog>} dialogs Dialogs with given hash and same URL
+ * @returns {Promise<Array<Suite.Dialog>>}
  */
-module.exports.snapDialogsWithHash = function snapDialog( options, dialogs ) {
+module.exports.snapDialogsWithHash = ( options, dialogs ) => {
+    return new Promise( ( fulfill, reject ) => {
+        // prepare dialogs screenshots
+        dialogs.forEach( dialog => {
+            if ( !dialog.screenshots ) {
+                dialog.screenshots = [];
+            }
+        } );
+
+        db
+            .getDialogsScreenshots( dialogs )
+            .then( dialogsScreenshotsDb => {
+                const isDialogsSnapped = dialogsScreenshotsDb
+                    .filter( ( dialogScreenshotDb, i ) => DialogHelper.isDialogSnapped( options, dialogs[i], dialogScreenshotDb ) )
+                    .length === dialogs.length;
+
+                // use dialogs screenshots with hash from database if already snapped, and not force new snap
+                if ( isDialogsSnapped && !options.isForceSnap ) {
+                    return snapDialogsWithHashFromDatabase( dialogs, dialogsScreenshotsDb );
+                }
+                // snap dialogs with hash using horseman
+                else {
+                    return snapDialogsWithHashFromHorseman( options, dialogs );
+                }
+            } )
+            .then( () => fulfill( dialogs ) )
+            .catch( reject );
+    } );
+};
+
+/**
+ * @param {Suite.Options} options
+ * @param {Suite.Dialog} dialog
+ * @return {Promise<Suite.Dialog>}
+ */
+module.exports.snapDialog = function snapDialog( options, dialog ) {
+    return new Promise( ( fulfill, reject ) => {
+        // prepare dialog screenshots
+        if ( !dialog.screenshots ) {
+            dialog.screenshots = [];
+        }
+
+        db
+            .getDialogScreenshots( dialog )
+            .then( dialogScreenshotsDb => {
+                // use dialog from database if already snapped, and not force new snap
+                if ( DialogHelper.isDialogSnapped( options, dialog, dialogScreenshotsDb ) && !options.isForceSnap ) {
+                    return snapDialogFromDatabase( dialog, dialogScreenshotsDb );
+                }
+                // snap dialog using horseman
+                else {
+                    return snapDialogFromHorseman( options, dialog );
+                }
+            } )
+            .then( () => fulfill( dialog ) )
+            .catch( reject );
+    } );
+};
+
+/**
+ * @param {Suite.Dialog} dialog
+ * @param {Array<Database.DialogScreenshot>} dialogScreenshotsDb
+ * @return {Promise<Suite.Dialog>}
+ */
+function snapDialogFromDatabase( dialog, dialogScreenshotsDb ) {
+    return new Promise( ( fulfill ) => {
+        // append dialog screenshots from database
+        dialogScreenshotsDb.forEach( dialogScreenshotDb => {
+            dialog.screenshots.push( DialogHelper.createDialogScreenshot( dialogScreenshotDb.width, dialogScreenshotDb.height, dialogScreenshotDb.base64 ) );
+        } );
+
+        logger.info( TAG, 'snapDialog', 'Dialog \'%s\' using \'%d\' screenshots from database', LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogId( dialog ), dialogScreenshotsDb.length );
+
+        fulfill( dialog );
+    } );
+}
+
+/**
+ * @param {Suite.Options} options
+ * @param {Suite.Dialog} dialog
+ * @return {Promise<Suite.Dialog>}
+ */
+function snapDialogFromHorseman( options, dialog ) {
+    return new Promise( ( fulfill, reject ) => {
+        const horseman = new Horseman();
+
+        let chain = horseman
+            .open( dialog.url )
+            .evaluate( evaluateStopCSSAnimations );
+
+        // wait for selector
+        if ( dialog.waitForSelector ) {
+            chain = chain
+                .waitForSelector( dialog.waitForSelector );
+        }
+
+        // foreach dialog size
+        options.sizes.forEach( size => {
+            chain = chain
+                .viewport( size.width, size.height )
+                .wait( dialog.timeout || 0 )
+                .dialogScreenshot( dialog, size )
+        } );
+
+        chain
+            .then( () => fulfill( dialog ) )
+            .catch( reject )
+            .close();
+    } );
+}
+
+/**
+ * @param {Array<Suite.Dialog>} dialogs
+ * @param {Array<Array<Database.DialogScreenshot>>} dialogsScreenshotsDb
+ * @returns {Promise<Array<Suite.Dialog>>}
+ */
+function snapDialogsWithHashFromDatabase( dialogs, dialogsScreenshotsDb ) {
+    return new Promise( ( fulfill, reject ) => {
+        Promise
+            .all( dialogs.map( ( dialog, i ) => snapDialogFromDatabase( dialog, dialogsScreenshotsDb[i] ) ) )
+            .then( () => fulfill( dialogs ) )
+            .catch( reject );
+    } );
+}
+
+/**
+ * @param {Suite.Options} options
+ * @param {Array<Suite.Dialog>} dialogs
+ * @returns {Promise<Array<Suite.Dialog>>}
+ */
+function snapDialogsWithHashFromHorseman( options, dialogs ) {
     return new Promise( ( fulfill, reject ) => {
         const horseman = new Horseman();
 
@@ -93,16 +304,14 @@ module.exports.snapDialogsWithHash = function snapDialog( options, dialogs ) {
 
         let chain = horseman
             .open( url )
-            .evaluate( stopCSSAnimations );
+            .evaluate( evaluateStopCSSAnimations );
 
         dialogs.forEach( dialog => {
             dialog.screenshots = [];
 
             // change hash
             chain = chain
-                .evaluate( function ( hash ) {
-                    document.location.hash = hash;
-                }, dialog.hash );
+                .evaluate( evaluateRedirectHash( dialog.hash ) );
 
             // wait for selector
             if ( dialog.waitForSelector ) {
@@ -124,39 +333,4 @@ module.exports.snapDialogsWithHash = function snapDialog( options, dialogs ) {
             .catch( reject )
             .close();
     } );
-};
-
-/**
- * @param {Suite.Options} options
- * @param {Dialog} dialog
- */
-module.exports.snapDialog = function snapDialog( options, dialog ) {
-    return new Promise( ( fulfill, reject ) => {
-        const horseman = new Horseman();
-
-        dialog.screenshots = [];
-
-        let chain = horseman
-            .open( dialog.url )
-            .evaluate( stopCSSAnimations );
-
-        // wait for selector
-        if ( dialog.waitForSelector ) {
-            chain = chain
-                .waitForSelector( dialog.waitForSelector );
-        }
-
-        // foreach dialog size
-        options.sizes.forEach( size => {
-            chain = chain
-                .viewport( size.width, size.height )
-                .wait( dialog.timeout || 0 )
-                .dialogScreenshot( dialog, size )
-        } );
-
-        chain
-            .then( () => fulfill( dialog ) )
-            .catch( reject )
-            .close();
-    } );
-};
+}

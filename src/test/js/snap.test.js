@@ -3,9 +3,11 @@ const chai = require( 'chai' );
 
 const expect = chai.expect;
 
-const snapSuiteDialogs = require( '../../main/js/snap' ).snapSuiteDialogs;
-const snapDialog = require( '../../main/js/snap' ).snapDialog;
-const snapDialogsWithHash = require( '../../main/js/snap' ).snapDialogsWithHash;
+const LOGGER_CONSTANTS = require( '../../main/js/constants/logger-constants' );
+
+const snap = require( '../../main/js/snap' );
+const logger = require( '../../main/js/logger' );
+const db = require( '../../main/js/database' );
 
 const RESOURCES_FOLDER = path.resolve( __dirname, '../resources' );
 
@@ -14,9 +16,14 @@ function createDialogURL( dialog ) {
 }
 
 describe( 'snap', () => {
+    beforeEach( () => {
+        logger.clear();
+        return db.initDB();
+    } );
+
     describe( 'snapDialog', () => {
         it( 'should snap dialog', () => {
-            /** @type {Dialog} */
+            /** @type {Suite.Dialog} */
             const dialog = {
                 url: createDialogURL( 'dialog.html' )
             };
@@ -26,7 +33,7 @@ describe( 'snap', () => {
                 sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]
             };
 
-            return snapDialog( options, dialog )
+            return snap.snapDialog( options, dialog )
                 .then( dialog => {
                     expect( dialog.screenshots ).to.be.an( 'array' );
                     expect( dialog.screenshots ).to.have.lengthOf( 2 );
@@ -39,21 +46,54 @@ describe( 'snap', () => {
                     expect( dialog.screenshots[1].width ).to.equal( 320 );
                     expect( dialog.screenshots[1].height ).to.equal( 150 );
 
-                    console.log( JSON.stringify( dialog, null, 2 ) );
+                    // console.log( JSON.stringify( dialog, null, 2 ) );
                 } );
         } );
+
+        it( 'should use dialog screenshot from database', () => {
+            /** @type {Suite.Dialog} */
+            const dialog = {
+                id: 'id',
+                version: 'version',
+                url: createDialogURL( 'dialog.html' )
+            };
+
+            /** @type {Suite.Options} */
+            const options = {
+                sizes: [{ width: 460, height: 350 }]
+            };
+
+            return snap.snapDialog( options, dialog )
+                .then( dialog => {
+                    expect( dialog.screenshots ).to.be.an( 'array' );
+                    expect( dialog.screenshots ).to.have.lengthOf( 1 );
+
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER } ) ).to.have.lengthOf( 1 );
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER } ) ).to.have.lengthOf( 0 );
+
+                    return snap.snapDialog( options, dialog );
+                } )
+                .then( dialog => {
+                    expect( dialog.screenshots ).to.be.an( 'array' );
+                    expect( dialog.screenshots ).to.have.lengthOf( 2 );
+
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER } ) ).to.have.lengthOf( 1 );
+                } );
+        } ).timeout( 4000 );
     } );
 
     describe( 'snapDialogsWithHash', () => {
         it( 'should snap dialogs', () => {
-            /** @type {Dialog} */
+            /** @type {Suite.Dialog} */
             const firstDialog = {
+                version: '1',
                 url: createDialogURL( 'dialog-hash.html' ),
                 hash: 'First'
             };
 
-            /** @type {Dialog} */
+            /** @type {Suite.Dialog} */
             const secondDialog = {
+                version: '2',
                 url: createDialogURL( 'dialog-hash.html' ),
                 hash: 'Second'
             };
@@ -63,7 +103,8 @@ describe( 'snap', () => {
                 sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]
             };
 
-            return snapDialogsWithHash( options, [firstDialog, secondDialog] )
+            return snap
+                .snapDialogsWithHash( options, [firstDialog, secondDialog] )
                 .then( dialogs => {
                     expect( dialogs ).to.be.an( 'array' );
                     expect( dialogs ).to.have.lengthOf( 2 );
@@ -86,35 +127,41 @@ describe( 'snap', () => {
 
     describe( 'snapSuiteDialogs', () => {
         it( 'should snap suite', () => {
-            /** @type {Dialog} */
+            /** @type {Suite.Dialog} */
             const firstDialog = {
+                id: '1',
+                version: '1',
                 url: createDialogURL( 'dialog-hash.html' ),
                 hash: 'First'
             };
 
-            /** @type {Dialog} */
+            /** @type {Suite.Dialog} */
             const secondDialog = {
+                id: '2',
+                version: '1',
                 url: createDialogURL( 'dialog-hash.html' ),
                 hash: 'Second'
             };
 
-            /** @type {Dialog} */
+            /** @type {Suite.Dialog} */
             const secondThird = {
+                id: '3',
+                version: '1',
                 url: createDialogURL( 'dialog.html' )
             };
 
-            /** @type {Suite} */
+            /** @type {Suite.Options} */
             const options = {
                 sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]
             };
 
-            return snapSuiteDialogs( options, [firstDialog, secondDialog, secondThird] )
+            return snap.snapSuiteDialogs( options, [firstDialog, secondDialog, secondThird] )
                 .then( dialogs => {
                     expect( dialogs ).to.be.an( 'array' );
                     expect( dialogs ).to.have.lengthOf( 3 );
 
-                    console.log( JSON.stringify( dialogs, null, 2 ) );
+                    // console.log( JSON.stringify( dialogs, null, 2 ) );
                 } );
-        } );
+        } ).timeout( 4000 );
     } );
 } );
