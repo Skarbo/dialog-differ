@@ -16,7 +16,37 @@ A collaboration with [Starak](https://github.com/starak).
 ```
 const dialogDiffer = require( 'dialog-differ' );
 
-const suite = {}; // Suite structure
+const suite = { // see structure
+    options: {
+        sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }],
+        originalVersion: '1.0.1',
+        currentVersion: '1.0.2'        
+    },
+    original: [
+        {
+            id: 'first',
+            version: '1.0.1',
+            url: 'http://example.com/1.0.1/dialog-first.html'
+        },
+        {
+            id: 'second',
+            version: '1.0.1',
+            url: 'http://example.com/1.0.1/dialog-second.html'
+        }
+    ],
+    current: [
+        {
+            id: 'first',
+            version: '1.0.2',
+            url: 'http://example.com/1.0.2/dialog-first.html'
+        },
+        {
+            id: 'second',
+            version: '1.0.2',
+            url: 'http://example.com/1.0.2/dialog-second.html'
+        }
+    ]
+};
 
 dialogDiffer.diff( suite )
     .then( result )
@@ -33,14 +63,14 @@ dialogDiffer.diff( suite )
 
 ### Suite options
 
-| Property | Value | Example | Description |
+| Property | Value | Description | Example |
 | --- | --- | --- | --- |
-| sizes | `Array<{ width: Number, height: Number }>` | `[ { width: 350, height: 250 } ]` | Sizes |
-| originalVersion | `String` | `1.0.1` |  Original version |
-| currentVersion | `String` | `1.0.2`| Current version |
-| [isForceSnap] | `Boolean` | `false`| Force snap |
-| [isForceDiff] | `Boolean` | `false`| Force diff |
-| [database] | `String` | `~/database.json`| Path to database |
+| sizes | `Array<{ width: Number, height: Number }>` | Sizes | `[ { width: 460, height: 350 } ]`  | 
+| originalVersion | `String` | Original version | `1.0.1` |
+| currentVersion | `String` | Current version | `1.0.2`|
+| [isForceSnap] | `Boolean` | Force snap | `false`| 
+| [isForceDiff] | `Boolean` | Force diff | `false`| 
+| [database] | `String` | Path to database | `~/database.json`| 
 
 ## Tests
 
