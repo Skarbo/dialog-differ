@@ -58,7 +58,7 @@ dialogDiffer.diff( suite )
 ### Suite
 
 | Property | Value | Description |
-| --- | --- | --- | --- |
+| --- | --- | --- |
 | options | [`Suite.Options`](#suite-options) | Suite options |
 | original | [`Array<Suite.Dialog>`](#suite-dialog) | Original dialogs |
 | current | [`Array<Suite.Dialog>`](#suite-dialog) | Current dialogs |
