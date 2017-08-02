@@ -160,5 +160,6 @@ Extends JS `Error`
 
 ## Todo
 
+- Publish module
 - Logger level
 - Example
