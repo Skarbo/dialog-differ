@@ -59,7 +59,7 @@ dialogDiffer.diff( suite ) // see 'Suite' structure
 
 #### Suite
 
-| Property | Value | Description |
+| Property | Type | Description |
 | --- | --- | --- |
 | options | [`Suite.Options`](#suite-options) | Suite options |
 | original | [`Array<Suite.Dialog>`](#suite-dialog) | Original dialogs |
@@ -67,7 +67,7 @@ dialogDiffer.diff( suite ) // see 'Suite' structure
 
 #### Suite Options
 
-| Property | Value | Description | Example |
+| Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | sizes | `Array<{ width: Number, height: Number }>` | Sizes | `[ { width: 460, height: 350 } ]`  | 
 | originalVersion | `String` | Original version | `1.0.1` |
@@ -78,7 +78,7 @@ dialogDiffer.diff( suite ) // see 'Suite' structure
 
 #### Suite Dialog
 
-| Property | Value | Description | Example |
+| Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | version | `String` | Dialog version | `1.0.1` |
 | id | `String` | Dialog id | `first` |
@@ -91,14 +91,14 @@ dialogDiffer.diff( suite ) // see 'Suite' structure
 
 #### Suite Result
 
-| Property | Value | Description | Example |
+| Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | options | [`Suite.Options`](#suite-options) | Suite options |
 | results | [`Object{id: Suite.DialogsResult}`](#suite-dialogs-result) | Dialog results | `{ 'first': { ... } }` |
 
 #### Suite Dialogs Result
 
-| Property | Value | Description | Example |
+| Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | dialogId | `String` | Dialog id | `first` |
 | original | [`Suite.DialogResult`](#suite-dialog-result) | Original dialog | `{ id: 'first', version: '1.0.1', url: ..., screenshots: [ ... ] }` |
@@ -112,13 +112,13 @@ dialogDiffer.diff( suite ) // see 'Suite' structure
 
 Extends [Suite Dialog](#suite-dialog)
 
-| Property | Value | Description | Example |
+| Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | screenshots | `Array<base64: String, width: String, height: String>` | Dialog screenshots | `[ { base64: 'data:image/png;base64,...', width: 460, height: 350 } ]` |
 
 #### Suite Dialog Result Diff
 
-| Property | Value | Description | Example |
+| Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | index | `Number` | Index | `0` |
 | result | [`DifferConstant`](#differ-constants) | Diff result | `identical` |
@@ -128,7 +128,7 @@ Extends [Suite Dialog](#suite-dialog)
 
 Extends JS `Error`
 
-| Property | Value | Description | Example |
+| Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | message | `String` | Error message |
 | code | [`ErrorConstants`](#error-constants) | Error code | `unexpected-error` |
@@ -138,20 +138,20 @@ Extends JS `Error`
 
 #### Error Constants
 
-| Property | Description |
-| --- | --- |
-| `unexpected-error` | Unexpected error |
+| Property | Type | Description |
+| --- | --- | --- |
+| `unexpected-error` | `String` | Unexpected error |
 
 **TODO** More errors
 
 #### Differ Constants
 
-| Property | Description |
-| --- | --- |
-| `identical` | Identical dialog/screenshot |
-| `changed` | Changed dialog/screenshot |
-| `new` | New dialog/screenshot |
-| `deleted` | Deleted dialog/screenshot |
+| Property | Type | Description |
+| --- | --- | --- |
+| `identical` | `String` | Identical dialog/screenshot |
+| `changed` | `String` | Changed dialog/screenshot |
+| `new` | `String` | New dialog/screenshot |
+| `deleted` | `String` | Deleted dialog/screenshot |
 
 ## Tests
 
