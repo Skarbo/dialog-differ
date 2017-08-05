@@ -87,6 +87,7 @@ describe( 'snap', () => {
             /** @type {Suite.Dialog} */
             const firstDialog = {
                 version: '1',
+                id: '1',
                 url: createDialogURL( 'dialog-hash.html' ),
                 hash: 'First'
             };
@@ -94,6 +95,7 @@ describe( 'snap', () => {
             /** @type {Suite.Dialog} */
             const secondDialog = {
                 version: '2',
+                id: '1',
                 url: createDialogURL( 'dialog-hash.html' ),
                 hash: 'Second'
             };

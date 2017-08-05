@@ -122,6 +122,8 @@ describe( 'database', () => {
             ] )
             .then( () => db.getDialogsScreenshots( dialogs ) )
             .then( dialogsScreenshotsDb => {
+                expect( dialogsScreenshotsDb ).to.be.lengthOf( 2 );
+
                 dialogsScreenshotsDb.forEach( ( dialogScreenshotsDb, i ) => {
                     assertDialogScreenshot( dialogScreenshotsDb, dialogs[i], dialogOne.screenshots );
                 } );

@@ -10,6 +10,7 @@ const db = require( '../../main/js/database' );
 
 const RESOURCES_FOLDER = path.resolve( __dirname, '../resources' );
 const DIFFER_CONSTANTS = require( '../../main/js/constants/differ-constants' );
+const LOGGER_CONSTANTS = require( '../../main/js/constants/logger-constants' );
 
 function createDialogURL( dialog ) {
     return `file://${path.resolve( RESOURCES_FOLDER, dialog )}`;
@@ -59,13 +60,15 @@ describe( 'differ', () => {
              * @type {Suite.Dialog}
              */
             const dialogOriginal = {
+                id: '1',
                 version: '1',
                 url: createDialogURL( 'dialog-one.html' )
             };
             /**
              * @type {Suite.Dialog}
              */
-            const dialogNew = {
+            const dialogCurrent = {
+                id: '1',
                 version: '2',
                 url: createDialogURL( 'dialog-two.html' )
             };
@@ -78,7 +81,7 @@ describe( 'differ', () => {
             return Promise
                 .all( [
                     snap.snapDialog( options, dialogOriginal ),
-                    snap.snapDialog( options, dialogNew )] )
+                    snap.snapDialog( options, dialogCurrent )] )
                 .then( ( [dialogOriginal, dialogNew] ) => {
                     return differ.differDialog( options, dialogOriginal, dialogNew );
                 } )
@@ -99,8 +102,89 @@ describe( 'differ', () => {
                     expect( dialogResult.differ[1].index ).to.equal( 1 );
                     expect( dialogResult.differ[1].base64 ).to.be.an( 'string' );
                     expect( dialogResult.differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+
+                    return db.getDialogsResult( options, dialogOriginal, dialogCurrent );
+                } )
+                .then( dialogsResultDb => {
+                    expect( dialogsResultDb ).to.be.an( 'object' );
+                    expect( dialogsResultDb.originalVersion ).to.be.equal( dialogOriginal.version );
+                    expect( dialogsResultDb.currentVersion ).to.be.equal( dialogCurrent.version );
+                    expect( dialogsResultDb.result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+                    expect( dialogsResultDb.differ ).to.be.an( 'array' );
+                    expect( dialogsResultDb.differ ).to.have.lengthOf( 2 );
+
+                    expect( dialogsResultDb.differ[0] ).to.be.an( 'object' );
+                    expect( dialogsResultDb.differ[0].index ).to.equal( 0 );
+                    expect( dialogsResultDb.differ[0].base64 ).to.be.an( 'string' );
+                    expect( dialogsResultDb.differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+
+                    expect( dialogsResultDb.differ[1] ).to.be.an( 'object' );
+                    expect( dialogsResultDb.differ[1].index ).to.equal( 1 );
+                    expect( dialogsResultDb.differ[1].base64 ).to.be.an( 'string' );
+                    expect( dialogsResultDb.differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
                 } );
-        } ).timeout( 4000 )
+        } ).timeout( 4000 );
+
+        it( 'should use differ dialogs from database', () => {
+            /**
+             * @type {Suite.Dialog}
+             */
+            const dialogOriginal = {
+                version: '1',
+                id: '1',
+                url: createDialogURL( 'dialog-one.html' )
+            };
+            /**
+             * @type {Suite.Dialog}
+             */
+            const dialogCurrent = {
+                version: '2',
+                id: '1',
+                url: createDialogURL( 'dialog-two.html' )
+            };
+
+            /** @type {Suite.Options} */
+            const options = {
+                sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]
+            };
+
+            return Promise
+                .all( [
+                    snap.snapDialog( options, dialogOriginal ),
+                    snap.snapDialog( options, dialogCurrent )]
+                )
+                .then( ( [dialogOriginal, dialogNew] ) => {
+                    return differ.differDialog( options, dialogOriginal, dialogNew );
+                } )
+                .then( dialogResult => {
+                    expect( dialogResult ).to.be.an( 'object' );
+                    expect( dialogResult.result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER } ) ).to.have.lengthOf( 1 );
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER } ) ).to.have.lengthOf( 0 );
+
+                    return db.getDialogsResult( options, dialogOriginal, dialogCurrent );
+                } )
+                .then( dialogsResultDb => {
+                    expect( dialogsResultDb ).to.be.an( 'object' );
+
+                    return Promise
+                        .all( [
+                            snap.snapDialog( options, dialogOriginal ),
+                            snap.snapDialog( options, dialogCurrent )
+                        ] );
+                } )
+                .then( ( [dialogOriginal, dialogNew] ) => {
+                    return differ.differDialog( options, dialogOriginal, dialogNew );
+                } )
+                .then( dialogResult => {
+                    expect( dialogResult ).to.be.an( 'object' );
+                    expect( dialogResult.result ).to.equal( DIFFER_CONSTANTS.CHANGED_STATUS_DIFFER );
+
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER } ) ).to.have.lengthOf( 1 );
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER } ) ).to.have.lengthOf( 1 );
+                } );
+        } ).timeout( 4000 );
     } );
 
     describe( 'differSuite', () => {

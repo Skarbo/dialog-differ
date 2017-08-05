@@ -197,7 +197,7 @@ module.exports.getDialogsResult = ( options, dialogOriginal, dialogCurrent ) => 
     return new Promise( ( fulfill, reject ) => {
         try {
             const dialogsDiffResultDb = db
-                .get( DIALOG_SCREENSHOTS_DB )
+                .get( DIALOG_DIFFS_RESULT_DB )
                 .find( {
                     dialogId: dialogOriginal.id,
                     originalVersion: dialogOriginal.version,
