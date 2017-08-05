@@ -44,7 +44,7 @@ module.exports.log = ( tag, context, message, code, ...args ) => {
 };
 
 module.exports.warn = ( tag, context, message, code, ...args ) => {
-    console.log.apply( null, [createMessage( { type: 'WARN', tag, context, code, message } )].concat( args ) );
+    console.warn.apply( null, [createMessage( { type: 'WARN', tag, context, code, message } )].concat( args ) );
 
     collections.warns.push( {
         tag,
@@ -56,7 +56,7 @@ module.exports.warn = ( tag, context, message, code, ...args ) => {
 };
 
 module.exports.error = ( tag, context, message, code, ...args ) => {
-    console.log.apply( null, [createMessage( { type: 'ERROR', tag, context, code, message } )].concat( args ) );
+    console.error.apply( null, [createMessage( { type: 'ERROR', tag, context, code, message } )].concat( args ) );
 
     collections.errors.push( {
         tag,
@@ -68,7 +68,7 @@ module.exports.error = ( tag, context, message, code, ...args ) => {
 };
 
 module.exports.info = ( tag, context, message, code, ...args ) => {
-    console.log.apply( null, [createMessage( { type: 'INFO', tag, context, code, message } )].concat( args ) );
+    console.info.apply( null, [createMessage( { type: 'INFO', tag, context, code, message } )].concat( args ) );
 
     collections.infos.push( {
         tag,
