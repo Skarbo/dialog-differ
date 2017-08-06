@@ -19,7 +19,9 @@ function createDialogURL( dialog ) {
 describe( 'differ', () => {
     beforeEach( () => {
         logger.clear();
-        return db.initDB();
+        return db
+            .clearDB()
+            .then( db.initDB );
     } );
 
     describe( 'differDialogScreenshot', () => {

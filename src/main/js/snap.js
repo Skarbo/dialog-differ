@@ -21,42 +21,29 @@ Horseman.registerAction( 'dialogScreenshot',
     function ( dialog, size ) {
         const self = this;
 
-        return new Promise( ( fulfill ) => {
-            return db
-                .getDialogScreenshot( dialog, {
-                    width: size.width,
-                    height: size.height
+        return new Promise( ( fulfill, reject ) => {
+            logger.info(
+                TAG,
+                'dialogScreenshot',
+                'Taking screenshot \'%s\', \'%s%s\'',
+                LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER, DialogHelper.createUniqueDialogScreenshotId( dialog, { width: size.width, height: size.height } ),
+                dialog.url,
+                dialog.hash ? `#${dialog.hash}` : ''
+            );
+
+            return self
+                .screenshotBase64( 'PNG' )
+                .then( result => {
+                    /** @type {Suite.DialogScreenshot} */
+                    const dialogScreenshot = DialogHelper.createDialogScreenshot( size.width, size.height, `data:image/png;base64,${result}` );
+
+                    dialog.screenshots.push( dialogScreenshot );
+
+                    // save screenshot to database
+                    return db.saveDialogScreenshot( dialog, dialogScreenshot );
                 } )
-                .then( ( dialogScreenshotDb ) => {
-                    // use screenshot from database
-                    if ( dialogScreenshotDb ) {
-                        logger.info( TAG, 'dialogScreenshot', 'Using screenshot from database \'%s\'', LOGGER_CONSTANTS.SCREENSHOT_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogScreenshotId( dialog, {
-                            width: size.width,
-                            height: size.height
-                        } ) );
-
-                        dialog.screenshots.push( DialogHelper.createDialogScreenshot( size.width, size.height, dialogScreenshotDb.base64 ) );
-
-                        fulfill();
-                        return;
-                    }
-
-                    // take a screenshot
-                    logger.info( TAG, 'dialogScreenshot', 'Taking screenshot \'%s\'', LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER, DialogHelper.createUniqueDialogScreenshotId( dialog, { width: size.width, height: size.height } ) );
-
-                    return self
-                        .screenshotBase64( 'PNG' )
-                        .then( result => {
-                            /** @type {Suite.DialogScreenshot} */
-                            const dialogScreenshot = DialogHelper.createDialogScreenshot( size.width, size.height, `data:image/png;base64,${result}` );
-
-                            dialog.screenshots.push( dialogScreenshot );
-
-                            // save screenshot to database
-                            return db.saveDialogScreenshot( dialog, dialogScreenshot );
-                        } )
-                        .then( fulfill );
-                } )
+                .then( fulfill )
+                .catch( reject );
         } );
     } );
 
@@ -136,7 +123,7 @@ module.exports.snapSuite = ( suite ) => {
 
 /**
  * @param {Suite.Options} options
- * @param {Array<Suite.Dialog>} dialogs
+ * @param {Array<Suite.Dialog>} dialogsNdb
  * @return {Promise<Array<Suite.Dialog>>}
  */
 module.exports.snapSuiteDialogs = ( options, dialogs ) => {
@@ -153,7 +140,7 @@ module.exports.snapSuiteDialogs = ( options, dialogs ) => {
                 }
             } ) )
             .then( result => {
-                fulfill( result.reduce( ( acc, cur ) => (acc = acc.concat( cur ), acc) ), [] );
+                fulfill( result.reduce( ( acc, cur ) => (acc = acc.concat( cur ), acc), [] ) );
             } )
             .catch( reject );
     } );
@@ -166,6 +153,8 @@ module.exports.snapSuiteDialogs = ( options, dialogs ) => {
  */
 module.exports.snapDialogsWithHash = ( options, dialogs ) => {
     return new Promise( ( fulfill, reject ) => {
+        logger.log( TAG, 'snapDialogsWithHash', '‰s dialogs with url \'%s\', version \'%s\'', null, dialogs.length, dialogs[0].url, dialogs[0].version );
+
         // prepare dialogs screenshots
         dialogs.forEach( dialog => {
             if ( !dialog.screenshots ) {
@@ -306,6 +295,8 @@ function snapDialogsWithHashFromHorseman( options, dialogs ) {
 
         dialogs.forEach( dialog => {
             dialog.screenshots = [];
+
+            logger.log( TAG, 'snapDialogsWithHashFromHorseman', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId( dialog ), dialog.hash );
 
             // change hash
             chain = chain

@@ -26,7 +26,9 @@ function assertDialogScreenshot( dialogScreenshotsDb, dialog, dialogScreenshots 
 
 describe( 'database', () => {
     beforeEach( () => {
-        return db.initDB();
+        return db
+            .clearDB()
+            .then( db.initDB );
     } );
 
     it( 'should save and get dialog screenshot', () => {

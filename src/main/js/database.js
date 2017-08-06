@@ -45,13 +45,12 @@ const DIALOG_DIFFS_RESULT_DB = 'dialog_diffs_result';
 module.exports.initDB = ( dbFile ) => {
     return new Promise( ( fulfill, reject ) => {
         try {
-            if ( db ) {
-                db.setState( {} );
+            if ( !db ) {
+                db = lowDB( dbFile );
+
+                db._.mixin( require( 'lodash-id' ) );
+
             }
-
-            db = lowDB( dbFile );
-
-            db._.mixin( require( 'lodash-id' ) );
 
             db
                 .defaults( {
@@ -66,6 +65,13 @@ module.exports.initDB = ( dbFile ) => {
             reject( ErrorHelper.createError( err, 'Could not init DB', ERROR_CONSTANTS.INIT_DB_ERROR, { dbFile } ) );
         }
     } );
+};
+
+module.exports.clearDB = () => {
+    if ( db ) {
+        db.setState( {} );
+    }
+    return Promise.resolve();
 };
 
 /**

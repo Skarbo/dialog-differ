@@ -46,8 +46,8 @@ function createDialogsResult( dialogOriginal, dialogCurrent, result, differ = []
         dialogId: dialogOriginal && dialogOriginal.id || dialogCurrent && dialogCurrent.id,
         original: dialogOriginal,
         current: dialogCurrent,
-        originalVersion: dialogOriginal.version,
-        currentVersion: dialogCurrent.version,
+        originalVersion: dialogOriginal && dialogOriginal.version || null,
+        currentVersion: dialogCurrent && dialogCurrent.version || null,
         result,
         differ,
     };

@@ -18,7 +18,9 @@ function createDialogURL( dialog ) {
 describe( 'snap', () => {
     beforeEach( () => {
         logger.clear();
-        return db.initDB();
+        return db
+            .clearDB()
+            .then( db.initDB );
     } );
 
     describe( 'snapDialog', () => {
