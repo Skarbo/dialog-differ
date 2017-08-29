@@ -8,7 +8,7 @@ const SuiteHelper = require( '../../../main/js/helpers/suite-helper' );
 
 describe( 'SuiteHelper', () => {
     it( 'should validate Suite', () => {
-        /** @type {Suite} */
+        /** @type {Suite.Suite} */
         const suite = {
             /** @type {Suite.Options} */
             options: {
@@ -39,7 +39,7 @@ describe( 'SuiteHelper', () => {
 
     describe( 'options', () => {
         it( 'should have options', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {};
 
             return SuiteHelper
@@ -54,7 +54,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have options size', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {}
             };
@@ -71,7 +71,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have current options size', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1 }]
@@ -90,7 +90,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have versions', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }]
@@ -109,7 +109,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have not have same versions', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],
@@ -132,7 +132,7 @@ describe( 'SuiteHelper', () => {
 
     describe( 'dialogs', () => {
         it( 'should have original dialogs', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],
@@ -153,7 +153,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have current dialogs', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],
@@ -176,7 +176,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'original dialogs should have correct values', () => {
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],

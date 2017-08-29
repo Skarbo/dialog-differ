@@ -221,7 +221,7 @@ describe( 'differ', () => {
                 hash: 'Two'
             };
 
-            /** @type {Suite} */
+            /** @type {Suite.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]

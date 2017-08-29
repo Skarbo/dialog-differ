@@ -188,12 +188,12 @@ function differDialogWithImageDiff( options, dialogOriginal, dialogCurrent ) {
 }
 
 /**
- * @param {Suite} suite
- * @returns {Promise<SuiteResult>}
+ * @param {Suite.Suite} suite
+ * @returns {Promise<Suite.SuiteResult>}
  */
 module.exports.differSuite = ( suite ) => {
     return new Promise( ( fulfill, reject ) => {
-        /** @type {SuiteResult} */
+        /** @type {Suite.SuiteResult} */
         const suiteResult = SuiteHelper.prepareSuiteResults( suite );
         logger.log( TAG, 'differSuite', 'Differ suite...' );
 

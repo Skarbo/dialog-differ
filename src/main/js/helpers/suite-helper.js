@@ -3,8 +3,8 @@ const ERROR_CONSTANTS = require( '../constants/error-constants' );
 const ErrorHelper = require( './error-helper' );
 
 /**
- * @param {Suite} suite
- * @returns {SuiteResult}
+ * @param {Suite.Suite} suite
+ * @returns {Suite.SuiteResult}
  */
 module.exports.prepareSuiteResults = ( suite ) => {
     const suiteResult = {
@@ -56,7 +56,7 @@ module.exports.createUniqueOptionsId = ( options ) => {
 };
 
 /**
- * @param {Suite} suite
+ * @param {Suite.Suite} suite
  * @return {Promise<Boolean>}
  */
 module.exports.validateSuite = ( suite ) => {

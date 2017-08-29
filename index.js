@@ -1,4 +1,8 @@
 /**
+ * @interface Suite
+ */
+
+/**
  * @typedef {Error} Suite.Error
  * @property {String} message
  * @property {String} code
@@ -60,16 +64,18 @@
  */
 
 /**
- * @typedef {Object} Suite
+ * @typedef {Object} Suite.Suite
  * @property {Suite.Options} options
  * @property {Array<Suite.Dialog>} original
  * @property {Array<Suite.Dialog>} current
+ * @memberOf Suite
  */
 
 /**
- * @typedef {Object} SuiteResult
+ * @typedef {Object} Suite.SuiteResult
  * @property {Suite.Options} options
  * @property {{id: Suite.DialogsResult}} [results]
+ * @memberOf Suite
  */
 
 const db = require( './src/main/js/database' );
@@ -80,8 +86,8 @@ const ErrorHelper = require( './src/main/js/helpers/error-helper' );
 const SuiteHelper = require( './src/main/js/helpers/suite-helper' );
 
 /**
- * @param {Suite} suite
- * @return {Promise<SuiteResult, Error>}
+ * @param {Suite.Suite} suite
+ * @return {Promise<Suite.SuiteResult, Suite.Error>}
  */
 module.exports.diff = ( suite ) => {
     return new Promise( ( fulfill, reject ) => {
@@ -89,7 +95,21 @@ module.exports.diff = ( suite ) => {
             .then( () => db.initDB( suite.options.database ) )
             .then( () => snap.snapSuite( suite ) )
             .then( () => differ.differSuite( suite ) )
+            .then( suiteResult => db.saveSuiteResult( suiteResult ) )
             .then( fulfill )
             .catch( err => reject( ErrorHelper.createError( err, 'Unexpected error' ) ) );
+    } );
+};
+
+/**
+ * @return {Promise<Array<Suite.SuiteResult>, Suite.Error>}
+ */
+module.exports.getLastSuiteResults = ( database ) => {
+    return new Promise( ( fulfill, reject ) => {
+        db
+            .initDB( database )
+            .then( () => db.getLastSuiteResults() )
+            .then( fulfill )
+            .catch( reject );
     } );
 };

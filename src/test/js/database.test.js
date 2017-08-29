@@ -131,4 +131,98 @@ describe( 'database', () => {
                 } );
             } )
     } );
+
+    describe( 'SuiteResult', () => {
+        it( 'should save suite result', () => {
+            /** @type {Suite.SuiteResult} */
+            const suiteResult = {
+                options: {
+                    originalVersion: 1,
+                    currentVersion: 2
+                },
+                results: {
+                    1: {
+                        dialogId: 1,
+                        originalVersion: 1,
+                        currentVersion: 2,
+                        result: 'result'
+                    },
+                    2: {
+                        dialogId: 2,
+                        originalVersion: 1,
+                        currentVersion: 2,
+                        result: 'result2'
+                    }
+                }
+            };
+
+            return db
+                .saveSuiteResult( suiteResult )
+                .then( suiteResult => {
+                    expect( suiteResult ).to.be.an( 'object' );
+                } );
+        } );
+
+        it( 'should get suite results', () => {
+            /** @type {Suite.SuiteResult} */
+            const suiteResultOne = {
+                options: {
+                    originalVersion: 1,
+                    currentVersion: 2
+                },
+                results: {
+                    1: {
+                        dialogId: 1,
+                        originalVersion: 1,
+                        currentVersion: 2,
+                        result: 'result'
+                    },
+                    2: {
+                        dialogId: 2,
+                        originalVersion: 1,
+                        currentVersion: 2,
+                        result: 'result2'
+                    }
+                }
+            };
+            /** @type {Suite.SuiteResult} */
+            const suiteResultTwo = {
+                options: {
+                    originalVersion: 2,
+                    currentVersion: 3
+                },
+                results: {
+                    1: {
+                        dialogId: 1,
+                        originalVersion: 2,
+                        currentVersion: 3,
+                        result: 'result'
+                    },
+                    2: {
+                        dialogId: 2,
+                        originalVersion: 2,
+                        currentVersion: 3,
+                        result: 'result2'
+                    }
+                }
+            };
+
+            return Promise.all( [
+                db.saveSuiteResult( suiteResultOne ),
+                db.saveSuiteResult( suiteResultTwo ),
+            ] )
+                .then( () => {
+                    return db.getLastSuiteResults();
+                } )
+                .then( suiteResults => {
+                    expect( suiteResults ).to.be.an( 'array' );
+                    expect( suiteResults ).to.be.lengthOf( 2 );
+
+                    expect( suiteResults[0].originalVersion ).to.equal( 2 );
+                    expect( suiteResults[0].currentVersion ).to.equal( 3 );
+                    expect( suiteResults[1].originalVersion ).to.equal( 1 );
+                    expect( suiteResults[1].currentVersion ).to.equal( 2 );
+                } );
+        } );
+    } );
 } );

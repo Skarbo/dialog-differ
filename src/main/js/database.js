@@ -9,6 +9,7 @@ let db;
 
 const DIALOG_SCREENSHOTS_DB = 'dialog_screenshots';
 const DIALOG_DIFFS_RESULT_DB = 'dialog_diffs_result';
+const SUITE_RESULT_DB = 'suite_result';
 
 /**
  * @interface Database
@@ -40,6 +41,16 @@ const DIALOG_DIFFS_RESULT_DB = 'dialog_diffs_result';
  */
 
 /**
+ * @typedef {Object} Database.SuiteResult
+ * @property {String} dialogId
+ * @property {String} originalVersion
+ * @property {String} currentVersion
+ * @property {Array<{dialogId: String, originalVersion: String, currentVersion: String, result: String}>} dialogsResult
+ * @property {Number} timestamp
+ * @memberOf Database
+ */
+
+/**
  * @param {String} [dbFile] Uses in-memory if not given
  */
 module.exports.initDB = ( dbFile ) => {
@@ -49,13 +60,13 @@ module.exports.initDB = ( dbFile ) => {
                 db = lowDB( dbFile );
 
                 db._.mixin( require( 'lodash-id' ) );
-
             }
 
             db
                 .defaults( {
                     [DIALOG_SCREENSHOTS_DB]: [],
-                    [DIALOG_DIFFS_RESULT_DB]: []
+                    [DIALOG_DIFFS_RESULT_DB]: [],
+                    [SUITE_RESULT_DB]: [],
                 } )
                 .write();
 
@@ -216,6 +227,64 @@ module.exports.getDialogsResult = ( options, dialogOriginal, dialogCurrent ) => 
         }
         catch ( err ) {
             reject( ErrorHelper.createError( err, 'Could not get dialogs diff result', ERROR_CONSTANTS.GET_DIALOG_SCREENSHOT_DB_ERROR, { options, dialogOriginal, dialogCurrent } ) );
+        }
+    } );
+};
+
+/**
+ * @param {Suite.SuiteResult} suiteResult
+ * @return {Promise<Suite.SuiteResult>}
+ */
+module.exports.saveSuiteResult = ( suiteResult ) => {
+    return new Promise( ( fulfill, reject ) => {
+        try {
+            db
+                .get( SUITE_RESULT_DB )
+                .insert( {
+                    originalVersion: suiteResult.options.originalVersion,
+                    currentVersion: suiteResult.options.currentVersion,
+                    options: suiteResult.options,
+                    timestamp: Date.now(),
+                    dialogsResult: Object
+                        .keys( suiteResult.results )
+                        .map( dialogId => {
+                            /** @type {Suite.DialogsResult} */
+                            const dialogsResult = suiteResult.results[dialogId];
+
+                            return {
+                                dialogId,
+                                originalVersion: dialogsResult.originalVersion,
+                                currentVersion: dialogsResult.currentVersion,
+                                result: dialogsResult.result,
+                            };
+                        } )
+                } )
+                .write();
+
+            fulfill( suiteResult );
+        }
+        catch ( err ) {
+            reject( ErrorHelper.createError( err, 'Could not save suite result', ERROR_CONSTANTS.SAVE_SUITE_RESULT_DB_ERROR, { suiteResult } ) );
+        }
+    } );
+};
+
+/**
+ * @return {Promise<Array<Database.SuiteResult>>}
+ */
+module.exports.getLastSuiteResults = () => {
+    return new Promise( ( fulfill, reject ) => {
+        try {
+            const suiteResultsDb = db
+                .get( SUITE_RESULT_DB )
+                .sortBy( 'timestamp' )
+                .reverse()
+                .value();
+
+            fulfill( suiteResultsDb );
+        }
+        catch ( err ) {
+            reject( ErrorHelper.createError( err, 'Could not get suite results', ERROR_CONSTANTS.GET_SUITE_RESULTS_DB_ERROR ) );
         }
     } );
 };

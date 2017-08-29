@@ -103,7 +103,7 @@ function collectDialogs( dialogs ) {
 }
 
 /**
- * @param {Suite} suite
+ * @param {Suite.Suite} suite
  * @return {Promise<Suite>}
  */
 module.exports.snapSuite = ( suite ) => {
