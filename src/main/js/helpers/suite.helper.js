@@ -1,20 +1,35 @@
 const ERROR_CONSTANTS = require( '../constants/error-constants' );
+const SUITE_CONSTANTS = require( '../constants/suite-constants' );
 
-const ErrorHelper = require( './error-helper' );
+const ErrorHelper = require( './error.helper' );
 
 /**
- * @param {Suite.Suite} suite
- * @returns {Suite.SuiteResult}
+ * @param {DialogDiffer.Suite} suite
+ * @param {DialogDiffer.Database.SuiteResult} [suiteResultDb]
+ * @returns {DialogDiffer.SuiteResult}
  */
-module.exports.prepareSuiteResults = ( suite ) => {
+module.exports.prepareSuiteResults = ( suite, suiteResultDb = {} ) => {
     const suiteResult = {
+        id: suiteResultDb && suiteResultDb.id || null,
+        status: SUITE_CONSTANTS.RUNNING_STATUS,
+        errorCode: null,
+        timestamp: suiteResultDb && suiteResultDb.timestamp || Date.now(),
         options: suite.options,
-        results: {}
+        results: [],
+        stats: {
+            identical: 0,
+            changed: 0,
+            added: 0,
+            deleted: 0,
+            duration: 0,
+            error: 0,
+        },
     };
+    const resultsObj = {};
 
     /**
      * @param {String} dialogId
-     * @return {Suite.DialogsResult}
+     * @return {DialogDiffer.DialogsResult}
      */
     const createEmptyResult = ( dialogId ) => {
         return {
@@ -29,25 +44,28 @@ module.exports.prepareSuiteResults = ( suite ) => {
     };
 
     suite.current.forEach( dialog => {
-        suiteResult.results[dialog.id] = createEmptyResult( dialog.id );
-        suiteResult.results[dialog.id].current = dialog;
-        suiteResult.results[dialog.id].originalVersion = dialog.version;
+        resultsObj[dialog.id] = createEmptyResult( dialog.id );
+        resultsObj[dialog.id].current = dialog;
+        resultsObj[dialog.id].originalVersion = dialog.version;
     } );
 
     suite.original.forEach( dialog => {
-        if ( !suiteResult.results[dialog.id] ) {
-            suiteResult.results[dialog.id] = createEmptyResult( dialog.id );
+        if ( !resultsObj[dialog.id] ) {
+            resultsObj[dialog.id] = createEmptyResult( dialog.id );
         }
 
-        suiteResult.results[dialog.id].original = dialog;
-        suiteResult.results[dialog.id].originalVersion = dialog.version;
+        resultsObj[dialog.id].original = dialog;
+        resultsObj[dialog.id].originalVersion = dialog.version;
     } );
+
+    // append results obj as array
+    suiteResult.results = Object.keys( resultsObj ).map( dialogId => resultsObj[dialogId] );
 
     return suiteResult;
 };
 
 /**
- * @param {Suite.Options} options
+ * @param {DialogDiffer.Options} options
  * @return {String}
  */
 module.exports.createUniqueOptionsId = ( options ) => {
@@ -56,7 +74,7 @@ module.exports.createUniqueOptionsId = ( options ) => {
 };
 
 /**
- * @param {Suite.Suite} suite
+ * @param {DialogDiffer.Suite} suite
  * @return {Promise<Boolean>}
  */
 module.exports.validateSuite = ( suite ) => {
@@ -90,7 +108,7 @@ module.exports.validateSuite = ( suite ) => {
      * Validate dialogs
      */
     /**
-     * @param {Suite.Dialog} dialog
+     * @param {DialogDiffer.Dialog} dialog
      * @param {String} code
      * @param {String} version
      * @param {Number} i

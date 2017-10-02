@@ -61,9 +61,9 @@ dialogDiffer.diff( suite ) // see 'Suite' structure
 
 | Property | Type | Description |
 | --- | --- | --- |
-| options | [`Suite.Options`](#suite-options) | Suite options |
-| original | [`Array<Suite.Dialog>`](#suite-dialog) | Original dialogs |
-| current | [`Array<Suite.Dialog>`](#suite-dialog) | Current dialogs |
+| options | [`DialogDiffer.Options`](#suite-options) | Suite options |
+| original | [`Array<DialogDiffer.Dialog>`](#suite-dialog) | Original dialogs |
+| current | [`Array<DialogDiffer.Dialog>`](#suite-dialog) | Current dialogs |
 
 #### Suite Options
 
@@ -93,20 +93,20 @@ dialogDiffer.diff( suite ) // see 'Suite' structure
 
 | Property | Type | Description | Example |
 | --- | --- | --- | --- |
-| options | [`Suite.Options`](#suite-options) | Suite options |
-| results | [`Object{id: Suite.DialogsResult}`](#suite-dialogs-result) | Dialog results | `{ 'first': { ... } }` |
+| options | [`DialogDiffer.Options`](#suite-options) | Suite options |
+| results | [`Object{id: DialogDiffer.DialogsResult}`](#suite-dialogs-result) | Dialog results | `{ 'first': { ... } }` |
 
 #### Suite Dialogs Result
 
 | Property | Type | Description | Example |
 | --- | --- | --- | --- |
 | dialogId | `String` | Dialog id | `first` |
-| original | [`Suite.DialogResult`](#suite-dialog-result) | Original dialog | `{ id: 'first', version: '1.0.1', url: ..., screenshots: [ ... ] }` |
-| current | [`Suite.DialogResult`](#suite-dialog-result) | Current dialog | `{ id: 'first', version: '1.0.2', url: ..., screenshots: [ ... ] }` |
+| original | [`DialogDiffer.DialogResult`](#suite-dialog-result) | Original dialog | `{ id: 'first', version: '1.0.1', url: ..., screenshots: [ ... ] }` |
+| current | [`DialogDiffer.DialogResult`](#suite-dialog-result) | Current dialog | `{ id: 'first', version: '1.0.2', url: ..., screenshots: [ ... ] }` |
 | originalVersion | `String` | Original version | `1.0.1` |
 | currentVersion | `String` | Current version | `1.0.2` |
 | result | [`DifferConstant`](#differ-constants) | Diff result | `identical` |
-| differ | [`Object<id: Suite.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
+| differ | [`Object<id: DialogDiffer.DialogResultDiff>`](#suite-dialog-result-diff) | Dialogs diffs | `[ { index, result, base64 } ]` |
 
 #### Suite Dialog Result
 

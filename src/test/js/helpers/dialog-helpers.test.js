@@ -4,25 +4,25 @@ const expect = chai.expect;
 
 const ERROR_CONSTANTS = require( '../../../main/js/constants/error-constants' );
 
-const SuiteHelper = require( '../../../main/js/helpers/suite-helper' );
+const SuiteHelper = require( '../../../main/js/helpers/suite.helper' );
 
 describe( 'SuiteHelper', () => {
     it( 'should validate Suite', () => {
-        /** @type {Suite.Suite} */
+        /** @type {DialogDiffer.Suite} */
         const suite = {
-            /** @type {Suite.Options} */
+            /** @type {DialogDiffer.Options} */
             options: {
                 sizes: [{ width: 1, height: 2 }, { width: 3, height: 4 }],
                 originalVersion: '1',
                 currentVersion: '2',
             },
-            /** @type {Array<Suite.Dialog>} */
+            /** @type {Array<DialogDiffer.Dialog>} */
             original: [{
                 id: 'id',
                 version: '1',
                 url: 'url'
             }],
-            /** @type {Array<Suite.Dialog>} */
+            /** @type {Array<DialogDiffer.Dialog>} */
             current: [{
                 id: 'id',
                 version: '2',
@@ -39,7 +39,7 @@ describe( 'SuiteHelper', () => {
 
     describe( 'options', () => {
         it( 'should have options', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {};
 
             return SuiteHelper
@@ -54,7 +54,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have options size', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {}
             };
@@ -71,7 +71,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have current options size', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1 }]
@@ -90,7 +90,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have versions', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }]
@@ -109,7 +109,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have not have same versions', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],
@@ -132,7 +132,7 @@ describe( 'SuiteHelper', () => {
 
     describe( 'dialogs', () => {
         it( 'should have original dialogs', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],
@@ -153,7 +153,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'should have current dialogs', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],
@@ -176,7 +176,7 @@ describe( 'SuiteHelper', () => {
         } );
 
         it( 'original dialogs should have correct values', () => {
-            /** @type {Suite.Suite} */
+            /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
                     sizes: [{ width: 1, height: 1 }],

@@ -32,7 +32,7 @@ function createMessage( { type, tag, context, code, message } ) {
 }
 
 module.exports.log = ( tag, context, message, code, ...args ) => {
-    //console.log.apply( null, [createMessage( { type: 'LOG', tag, context, code, message } )].concat( args ) );
+    console.log.apply( null, [createMessage( { type: 'LOG', tag, context, code, message } )].concat( args ) );
 
     collections.logs.push( {
         tag,
@@ -68,7 +68,7 @@ module.exports.error = ( tag, context, message, code, ...args ) => {
 };
 
 module.exports.info = ( tag, context, message, code, ...args ) => {
-    //console.info.apply( null, [createMessage( { type: 'INFO', tag, context, code, message } )].concat( args ) );
+    console.info.apply( null, [createMessage( { type: 'INFO', tag, context, code, message } )].concat( args ) );
 
     collections.infos.push( {
         tag,
