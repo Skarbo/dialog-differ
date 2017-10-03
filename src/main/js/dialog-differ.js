@@ -1,8 +1,4 @@
 /**
- * @interface DialogDiffer
- */
-
-/**
  * @typedef {Object} DialogDiffer.Error
  * @property {String} code
  * @property {String} message
@@ -52,6 +48,7 @@
  * @property {Boolean} [isForceSnap]
  * @property {Boolean} [isForceDiff]
  * @property {String} [database]
+ * @property {String} [logLevel]
  * @memberOf DialogDiffer
  */
 
@@ -131,10 +128,14 @@ const logger = require( './logger' );
 const ERROR_CONSTANTS = require( './constants/error-constants' );
 const SUITE_CONSTANTS = require( './constants/suite-constants' );
 const DIFFER_CONSTANTS = require( './constants/differ-constants' );
+const LOGGER_CONSTANTS = require( './constants/logger-constants' );
 
 const ErrorHelper = require( './helpers/error.helper' );
 const SuiteHelper = require( './helpers/suite.helper' );
 
+/**
+ * @class
+ */
 class DialogDiffer {
 
     /**
@@ -149,6 +150,8 @@ class DialogDiffer {
         const databaseHandler = new DatabaseHandler();
         const differHandler = new DifferHandler( databaseHandler );
         const snapHandler = new SnapHandler( databaseHandler );
+
+        logger.level = suite.options.logLevel || LOGGER_CONSTANTS.NONE_LOG_LEVEL;
 
         return new Promise( ( fulfill, reject ) => {
             SuiteHelper.validateSuite( suite )
@@ -188,6 +191,8 @@ class DialogDiffer {
             console.log( 'getSuiteResult', suiteId );
             /** @type {DialogDiffer.SuiteResult} */
             let suiteResult;
+
+            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
 
             databaseHandler
                 .initDB( database )
@@ -279,6 +284,8 @@ class DialogDiffer {
         return new Promise( ( fulfill, reject ) => {
             const databaseHandler = new DatabaseHandler();
 
+            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+
             databaseHandler
                 .initDB( database )
                 .then( () => databaseHandler.getLastSuiteResults() )
@@ -287,9 +294,24 @@ class DialogDiffer {
         } );
     }
 
+    /**
+     * @param {String} dialogVersion
+     * @param {String} [database]
+     * @returns {Promise}
+     */
+    static deleteDialogs( dialogVersion, database ) {
+        return new Promise( ( fulfill, reject ) => {
+            const databaseHandler = new DatabaseHandler();
+
+            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+
+            databaseHandler
+                .initDB( database )
+                .then( () => databaseHandler.deleteDialogsScreenshots( dialogVersion ) )
+                .then( fulfill )
+                .catch( reject );
+        } );
+    }
 }
 
-/**
- * @type {DialogDiffer}
- */
 module.exports = DialogDiffer;

@@ -1,4 +1,9 @@
 module.exports = {
+    DEBUG_LOG_LEVEL: 'debug',
+    INFO_LOG_LEVEL: 'info',
+    ERROR_LOG_LEVEL: 'error',
+    NONE_LOG_LEVEL: 'none',
+
     SCREENSHOT_FROM_DATABASE_LOGGER: 'screenshot-from-database',
     SCREENSHOT_FROM_HORSEMAN_LOGGER: 'screenshot-from-horseman',
     SCREENSHOTS_FROM_DATABASE_LOGGER: 'screenshots-from-database',

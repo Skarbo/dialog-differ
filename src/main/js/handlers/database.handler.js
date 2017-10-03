@@ -229,6 +229,27 @@ class DatabaseHandler {
     }
 
     /**
+     * @param {String} dialogVersion
+     * @returns {Promise<Boolean, DialogDiffer.Error>}
+     */
+    deleteDialogsScreenshots( dialogVersion ) {
+        return new Promise( ( fulfill, reject ) => {
+            try {
+                db.get( DIALOG_SCREENSHOTS_DB )
+                    .remove( {
+                        dialogVersion: dialogVersion,
+                    } )
+                    .write();
+
+                fulfill( true );
+            }
+            catch ( err ) {
+                reject( ErrorHelper.createError( err, 'Could not delete dialog screenshots', ERROR_CONSTANTS.DELETE_DIALOGS_SCREENSHOTS_DB_ERROR, { dialogVersion } ) );
+            }
+        } );
+    }
+
+    /**
      * @param {DialogDiffer.Options} options
      * @param {DialogDiffer.Dialog} dialogOriginal
      * @param {DialogDiffer.Dialog} dialogCurrent

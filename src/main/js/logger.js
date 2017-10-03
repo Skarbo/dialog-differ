@@ -1,3 +1,7 @@
+const LOGGER_CONSTANTS = require( './constants/logger-constants' );
+
+const self = this;
+
 const collections = {
     logs: [],
     warns: [],
@@ -31,8 +35,32 @@ function createMessage( { type, tag, context, code, message } ) {
     return logMessage;
 }
 
+function createLogLevelNumber() {
+    if ( LOGGER_CONSTANTS.INFO_LOG_LEVEL ) {
+        return 1;
+    }
+    else if ( LOGGER_CONSTANTS.ERROR_LOG_LEVEL ) {
+        return 2;
+    }
+    else if ( LOGGER_CONSTANTS.NONE_LOG_LEVEL ) {
+        return -1;
+    }
+    else {
+        return 0;
+    }
+}
+
+function isLogLevel( level ) {
+    if ( self.level === LOGGER_CONSTANTS.NONE_LOG_LEVEL ) {
+        return false;
+    }
+    return self.level <= createLogLevelNumber( level );
+}
+
 module.exports.log = ( tag, context, message, code, ...args ) => {
-    console.log.apply( null, [createMessage( { type: 'LOG', tag, context, code, message } )].concat( args ) );
+    if ( isLogLevel( LOGGER_CONSTANTS.DEBUG_LOG_LEVEL ) ) {
+        console.log.apply( null, [createMessage( { type: 'LOG', tag, context, code, message } )].concat( args ) );
+    }
 
     collections.logs.push( {
         tag,
@@ -44,7 +72,9 @@ module.exports.log = ( tag, context, message, code, ...args ) => {
 };
 
 module.exports.warn = ( tag, context, message, code, ...args ) => {
-    console.warn.apply( null, [createMessage( { type: 'WARN', tag, context, code, message } )].concat( args ) );
+    if ( isLogLevel( LOGGER_CONSTANTS.INFO_LOG_LEVEL ) ) {
+        console.warn.apply( null, [createMessage( { type: 'WARN', tag, context, code, message } )].concat( args ) );
+    }
 
     collections.warns.push( {
         tag,
@@ -56,7 +86,9 @@ module.exports.warn = ( tag, context, message, code, ...args ) => {
 };
 
 module.exports.error = ( tag, context, message, code, ...args ) => {
-    console.error.apply( null, [createMessage( { type: 'ERROR', tag, context, code, message } )].concat( args ) );
+    if ( isLogLevel( LOGGER_CONSTANTS.ERROR_LOG_LEVEL ) ) {
+        console.error.apply( null, [createMessage( { type: 'ERROR', tag, context, code, message } )].concat( args ) );
+    }
 
     collections.errors.push( {
         tag,
@@ -68,7 +100,9 @@ module.exports.error = ( tag, context, message, code, ...args ) => {
 };
 
 module.exports.info = ( tag, context, message, code, ...args ) => {
-    console.info.apply( null, [createMessage( { type: 'INFO', tag, context, code, message } )].concat( args ) );
+    if ( isLogLevel( LOGGER_CONSTANTS.INFO_LOG_LEVEL ) ) {
+        console.info.apply( null, [createMessage( { type: 'INFO', tag, context, code, message } )].concat( args ) );
+    }
 
     collections.infos.push( {
         tag,
@@ -109,6 +143,7 @@ module.exports.getCollections = ( { type, tag, context, code } ) => {
     return filteredCollections;
 };
 
+module.exports.level = LOGGER_CONSTANTS.DEBUG_LOG_LEVEL;
 /** @type {Array<Logger.Log>} */
 module.exports.logs = collections.logs;
 /** @type {Array<Logger.Log>} */
