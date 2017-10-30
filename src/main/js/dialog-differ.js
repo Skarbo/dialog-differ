@@ -137,6 +137,21 @@ const SuiteHelper = require( './helpers/suite.helper' );
  * @class
  */
 class DialogDiffer {
+    static get ERROR_CONSTANTS() {
+        return ERROR_CONSTANTS;
+    }
+
+    static get SUITE_CONSTANTS() {
+        return SUITE_CONSTANTS;
+    }
+
+    static get DIFFER_CONSTANTS() {
+        return DIFFER_CONSTANTS;
+    }
+
+    static get LOGGER_CONSTANTS() {
+        return LOGGER_CONSTANTS;
+    }
 
     /**
      * @param {DialogDiffer.Suite} suite
@@ -278,7 +293,7 @@ class DialogDiffer {
     }
 
     /**
-     * @return {Promise<Array<DialogDiffer.SuiteResult>, DialogDiffer.Error>}
+     * @return {Promise<Array<DialogDiffer.Database.SuiteResult>, DialogDiffer.Error>}
      */
     static getLastSuiteResults( database ) {
         return new Promise( ( fulfill, reject ) => {
@@ -308,6 +323,25 @@ class DialogDiffer {
             databaseHandler
                 .initDB( database )
                 .then( () => databaseHandler.deleteDialogsScreenshots( dialogVersion ) )
+                .then( fulfill )
+                .catch( reject );
+        } );
+    }
+
+    /**
+     * @param {String} suiteId
+     * @param {String} [database]
+     * @returns {Promise}
+     */
+    static deleteSuiteResult( suiteId, database ) {
+        return new Promise( ( fulfill, reject ) => {
+            const databaseHandler = new DatabaseHandler();
+
+            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+
+            databaseHandler
+                .initDB( database )
+                .then( () => databaseHandler.deleteSuiteResult( suiteId ) )
                 .then( fulfill )
                 .catch( reject );
         } );

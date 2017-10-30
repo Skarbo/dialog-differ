@@ -1,6 +1,6 @@
 {
   "name": "dialog-differ",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Dialog differ",
   "main": "index.js",
   "scripts": {
@@ -16,7 +16,8 @@
     "node-horseman": "^3.3.0",
     "phantom": "^2.0.10",
     "tmp": "0.0.31",
-    "extend": "latest"
+    "extend": "latest",
+    "bluebird": "latest"
   },
   "devDependencies": {
     "chai": "^4.1.0",

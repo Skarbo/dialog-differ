@@ -4,6 +4,7 @@ const tmp = require( 'tmp' );
 const path = require( 'path' );
 const imageDiff = require( 'image-diff' );
 const base64Img = require( 'base64-img' );
+const Promise = require( 'bluebird' );
 
 const LOGGER_CONSTANTS = require( '../constants/logger-constants' );
 const DIFFER_CONSTANTS = require( '../constants/differ-constants' );
@@ -170,9 +171,12 @@ class DifferHandler {
                     this.prepareDialogScreenshots( dialogCurrent )
                 ] )
                 .then( ( [dialogOriginal, dialogCurrent] ) => {
-                    return Promise.all( dialogOriginal.screenshots.map( ( screenshot, i ) => {
-                        return this.differDialogScreenshot( dialogOriginal.screenshots[i], dialogCurrent.screenshots[i] );
-                    } ) );
+                    return Promise
+                        .map(
+                            dialogOriginal.screenshots,
+                            ( screenshot, i ) => this.differDialogScreenshot( dialogOriginal.screenshots[i], dialogCurrent.screenshots[i] ),
+                            { concurrency: 10 }
+                        );
                 } )
                 .then( result => {
                     /** @type {DialogDiffer.DialogsResult} */
@@ -219,8 +223,10 @@ class DifferHandler {
                 .then( suiteResultDb => {
                     suiteResult = SuiteHelper.prepareSuiteResults( suite, suiteResultDb );
 
-                    return Promise.all( suiteResult.results
-                        .map( result => this.differDialog( suite.options, result.original, result.current ) )
+                    return Promise.map(
+                        suiteResult.results,
+                        result => this.differDialog( suite.options, result.original, result.current ),
+                        { concurrency: 10 }
                     );
                 } )
                 .then( results => {

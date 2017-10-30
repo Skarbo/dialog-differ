@@ -27,6 +27,7 @@ module.exports = {
     SAVE_SUITE_RESULT_DB_ERROR: 'save-suite-result-db',
     GET_SUITE_RESULTS_DB_ERROR: 'get-suite-results-db',
     PREPARE_SUITE_RESULTS_DB_ERROR: 'prepare-suite-results-db',
+    DELETE_SUITE_RESULT_DB_ERROR: 'delete-suite-result-db',
 
     SUITE_OPTIONS_ERROR: 'suite-options',
     SUITE_ORIGINAL_DIALOG_ERROR: 'suite-original-dialog',

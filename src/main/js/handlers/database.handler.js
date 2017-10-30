@@ -277,7 +277,7 @@ class DatabaseHandler {
                 reject( ErrorHelper.createError( err, 'Could not save dialogs diff result', ERROR_CONSTANTS.SAVE_DIALOGS_DIFF_RESULT_DB_ERROR, { options, dialogOriginal, dialogCurrent, dialogsResult } ) );
             }
         } );
-    };
+    }
 
     /**
      * @param {DialogDiffer.Options} options
@@ -436,6 +436,27 @@ class DatabaseHandler {
             }
             catch ( err ) {
                 reject( ErrorHelper.createError( err, 'Could not get suite results', ERROR_CONSTANTS.GET_SUITE_RESULTS_DB_ERROR ) );
+            }
+        } );
+    }
+
+    /**
+     * @param {String} suiteId
+     * @returns {Promise<Boolean, DialogDiffer.Error>}
+     */
+    deleteSuiteResult( suiteId ) {
+        return new Promise( ( fulfill, reject ) => {
+            try {
+                db.get( SUITE_RESULT_DB )
+                    .remove( {
+                        id: suiteId,
+                    } )
+                    .write();
+
+                fulfill( true );
+            }
+            catch ( err ) {
+                reject( ErrorHelper.createError( err, 'Could not delete suite result', ERROR_CONSTANTS.DELETE_SUITE_RESULT_DB_ERROR, { suiteId } ) );
             }
         } );
     }

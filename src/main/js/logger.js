@@ -54,7 +54,7 @@ function isLogLevel( level ) {
     if ( self.level === LOGGER_CONSTANTS.NONE_LOG_LEVEL ) {
         return false;
     }
-    return self.level <= createLogLevelNumber( level );
+    return createLogLevelNumber( level ) >= createLogLevelNumber( self.level );
 }
 
 module.exports.log = ( tag, context, message, code, ...args ) => {
