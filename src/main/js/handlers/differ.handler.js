@@ -236,15 +236,6 @@ class DifferHandler {
                         suiteResult.results[i] = dialogResult;
                     } );
 
-                    // results.forEach( dialogResult => {
-                    //     if ( suiteResult.results[dialogResult.dialogId] ) {
-                    //         suiteResult.results[dialogResult.dialogId] = dialogResult
-                    //     }
-                    //     else {
-                    //         logger.error( TAG, 'differSuite', 'Suite result does not exist', dialogResult );
-                    //     }
-                    // } );
-
                     return Promise.resolve( suiteResult );
                 } )
                 .then( () => this.finishSuiteResult( suiteResult, { onEnd } ) )

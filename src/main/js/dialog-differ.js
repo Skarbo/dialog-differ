@@ -28,6 +28,13 @@
  */
 
 /**
+ * @typedef {Object} DialogDiffer.DialogOptions
+ * @property {Array<{width: Number, height: Number}>} [sizes]
+ * @property {Object} [extra] Extra data that can be stored in database
+ * @memberOf DialogDiffer
+ */
+
+/**
  * @typedef {Object} DialogDiffer.Dialog
  * @property {String} version
  * @property {String} id
@@ -37,6 +44,7 @@
  * @property {Number} [timeout]
  * @property {{code: String, message: String, args: Object, stack: Object}} [error] Injected
  * @property {Array<DialogDiffer.DialogScreenshot>} [screenshots] Injected
+ * @property {DialogDiffer.DialogOptions} [options]
  * @memberOf DialogDiffer
  */
 
@@ -55,10 +63,12 @@
 /**
  * @typedef {Object} DialogDiffer.DialogsResult
  * @property {String} dialogId
- * @property {DialogDiffer.Dialog} original
- * @property {DialogDiffer.Dialog} current
+ * @property {DialogDiffer.Dialog|null} original
+ * @property {DialogDiffer.Dialog|null} current
  * @property {String} originalVersion
  * @property {String} currentVersion
+ * @property {DialogDiffer.DialogOptions} originalOptions
+ * @property {DialogDiffer.DialogOptions} currentOptions
  * @property {String} result
  * @property {Array<DialogDiffer.DialogResultDiff>} differ
  * @memberOf DialogDiffer
@@ -132,6 +142,7 @@ const LOGGER_CONSTANTS = require( './constants/logger-constants' );
 
 const ErrorHelper = require( './helpers/error.helper' );
 const SuiteHelper = require( './helpers/suite.helper' );
+const DialogHelper = require( './helpers/dialog.helper' );
 
 /**
  * @class
@@ -203,7 +214,7 @@ class DialogDiffer {
     static getSuiteResult( suiteId, database ) {
         return new Promise( ( fulfill, reject ) => {
             const databaseHandler = new DatabaseHandler();
-            console.log( 'getSuiteResult', suiteId );
+
             /** @type {DialogDiffer.SuiteResult} */
             let suiteResult;
 
@@ -227,7 +238,7 @@ class DialogDiffer {
                                 .getDialogsScreenshots( [
                                     { id: suiteResultDialogsResultDb.dialogId, version: suiteResultDialogsResultDb.originalVersion },
                                     { id: suiteResultDialogsResultDb.dialogId, version: suiteResultDialogsResultDb.currentVersion },
-                                ], suiteResultDb.options.sizes )
+                                ], DialogHelper.getDialogSizes( suiteResultDb.options.sizes, suiteResultDialogsResultDb.original || suiteResultDialogsResultDb.current ) )
                                 .then( fulfill )
                                 .catch( reject );
                         } );
@@ -238,27 +249,31 @@ class DialogDiffer {
                     ( results ) => {
                         results.forEach( ( dialogsScreenshotsDb, i ) => {
                             // set original dialog, if result is not added
-                            suiteResult.results[i].original = suiteResult.results[i].result !== DIFFER_CONSTANTS.ADDED_DIFFER_RESULT ? {
-                                version: suiteResult.results[i].originalVersion,
-                                id: suiteResult.results[i].dialogId,
-                                screenshots: dialogsScreenshotsDb[0],
-                            } : null;
+                            if ( suiteResult.results[i].original && suiteResult.results[i].result !== DIFFER_CONSTANTS.ADDED_DIFFER_RESULT ) {
+                                suiteResult.results[i].original.screenshots = dialogsScreenshotsDb[0];
+                            }
+                            else {
+                                suiteResult.results[i].original = null;
+                            }
 
                             // set current dialog, if result is not deleted
-                            suiteResult.results[i].current = suiteResult.results[i].result !== DIFFER_CONSTANTS.DELETED_DIFFER_RESULT ? {
-                                version: suiteResult.results[i].currentVersion,
-                                id: suiteResult.results[i].dialogId,
-                                screenshots: dialogsScreenshotsDb[1],
-                            } : null;
+                            if ( suiteResult.results[i].current && suiteResult.results[i].result !== DIFFER_CONSTANTS.DELETED_DIFFER_RESULT ) {
+                                suiteResult.results[i].current.screenshots = dialogsScreenshotsDb[1];
+                            }
+                            else {
+                                suiteResult.results[i].current = null;
+                            }
 
                             // set default differ results
-                            suiteResult.results[i].differ = suiteResult.options.sizes.map( ( _, i ) => {
-                                return {
-                                    index: i,
-                                    result: DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT,
-                                    base64: null,
-                                };
-                            } );
+                            suiteResult.results[i].differ = DialogHelper
+                                .getDialogSizes( suiteResult.options.sizes, suiteResult.results[i].original || suiteResult.results[i].current )
+                                .map( ( _, i ) => {
+                                    return {
+                                        index: i,
+                                        result: DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT,
+                                        base64: null,
+                                    };
+                                } );
                         } );
 
                         return Promise.all( suiteResult.results.map( suiteResultDialogsResultDb => {

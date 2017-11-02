@@ -176,10 +176,10 @@ class SnapHandler {
             }
 
             this.databaseHandler
-                .getDialogScreenshots( dialog, options.sizes )
+                .getDialogScreenshots( dialog, DialogHelper.getDialogSizes( options.sizes, dialog ) )
                 .then( dialogScreenshotsDb => {
                     // use dialog from database if already snapped, and not force new snap
-                    if ( DialogHelper.isDialogSnapped( options, dialog, dialogScreenshotsDb ) && !options.isForceSnap ) {
+                    if ( DialogHelper.isDialogSnapped( DialogHelper.getDialogSizes( options.sizes, dialog ), dialog, dialogScreenshotsDb ) && !options.isForceSnap ) {
                         return this.snapDialogFromDatabase( dialog, dialogScreenshotsDb );
                     }
                     // snap dialog using horseman
@@ -247,6 +247,7 @@ class SnapHandler {
                 const horseman = new Horseman( {
                     timeout: config.horsemanTimeout,
                 } );
+                const sizes = DialogHelper.getDialogSizes( options.sizes, dialog );
 
                 let chain = horseman
                     .on( 'error', msg => {
@@ -262,7 +263,7 @@ class SnapHandler {
                 }
 
                 // foreach dialog size
-                options.sizes.forEach( size => {
+                sizes.forEach( size => {
                     chain = chain
                         .viewport( size.width, size.height )
                         .wait( dialog.timeout || 0 )
@@ -357,6 +358,7 @@ class SnapHandler {
 
                 dialogs.forEach( dialog => {
                     dialog.screenshots = [];
+                    const sizes = DialogHelper.getDialogSizes( options.sizes, dialog );
 
                     logger.log( TAG, 'snapDialogsWithHashFromHorseman', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId( dialog ), dialog.hash );
 
@@ -374,7 +376,7 @@ class SnapHandler {
                     }
 
                     // foreach dialog size
-                    options.sizes.forEach( size => {
+                    sizes.forEach( size => {
                         chain = chain
                             .viewport( size.width, size.height )
                             .wait( dialog.timeout || 0 )

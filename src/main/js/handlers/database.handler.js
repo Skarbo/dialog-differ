@@ -4,6 +4,7 @@ const ERROR_CONSTANTS = require( '../constants/error-constants' );
 const SUITE_CONSTANTS = require( '../constants/suite-constants' );
 
 const SuiteHelper = require( '../helpers/suite.helper' );
+const DialogHelper = require( '../helpers/dialog.helper' );
 const ErrorHelper = require( '../helpers/error.helper' );
 
 const DIALOG_SCREENSHOTS_DB = 'dialog_screenshots';
@@ -38,6 +39,8 @@ const SUITE_RESULT_DB = 'suite_result';
  * @property {String} dialogId
  * @property {String} originalVersion
  * @property {String} currentVersion
+ * @property {{version: String, id: String, url: String, hash: String, options: DialogDiffer.Options}} original
+ * @property {{version: String, id: String, url: String, hash: String, options: DialogDiffer.Options}} current
  * @property {String} result
  * @property {Array<DialogDiffer.DialogResultDiff>} differ
  * @memberOf DialogDiffer.Database
@@ -222,7 +225,7 @@ class DatabaseHandler {
     getDialogsScreenshots( dialogs, sizes ) {
         return new Promise( ( fulfill, reject ) => {
             Promise
-                .all( dialogs.map( dialog => this.getDialogScreenshots( dialog, sizes ) ) )
+                .all( dialogs.map( dialog => this.getDialogScreenshots( dialog, DialogHelper.getDialogSizes( sizes, dialog ) ) ) )
                 .then( fulfill )
                 .catch( err => reject( ErrorHelper.createError( err, 'Could not get dialog screenshots', ERROR_CONSTANTS.GET_DIALOGS_SCREENSHOTS_DB_ERROR, { dialogs } ) ) );
         } );
@@ -361,6 +364,20 @@ class DatabaseHandler {
                                     dialogId: dialogsResult.dialogId,
                                     originalVersion: dialogsResult.originalVersion,
                                     currentVersion: dialogsResult.currentVersion,
+                                    original: dialogsResult.original ? {
+                                        version: dialogsResult.originalVersion,
+                                        id: dialogsResult.original.id,
+                                        url: dialogsResult.original.url,
+                                        hash: dialogsResult.original.hash,
+                                        options: dialogsResult.original.options || {},
+                                    } : null,
+                                    current: dialogsResult.current ? {
+                                        version: dialogsResult.currentVersion,
+                                        id: dialogsResult.current.id,
+                                        url: dialogsResult.current.url,
+                                        hash: dialogsResult.current.hash,
+                                        options: dialogsResult.current.options || {},
+                                    } : null,
                                     result: dialogsResult.result,
                                 };
                             } )

@@ -60,6 +60,35 @@ describe( 'snap handler', () => {
                 } );
         } );
 
+        it( 'should snap dialog with custom size', () => {
+            /** @type {DialogDiffer.Dialog} */
+            const dialog = {
+                url: createDialogURL( 'dialog.html' ),
+                options: {
+                    sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]
+                }
+            };
+
+            /** @type {DialogDiffer.Options} */
+            const options = {
+                sizes: [{ width: 100, height: 200 }, { width: 300, height: 400 }]
+            };
+
+            return snapHandler.snapDialog( options, dialog )
+                .then( dialog => {
+                    expect( dialog.screenshots ).to.be.an( 'array' );
+                    expect( dialog.screenshots ).to.have.lengthOf( 2 );
+
+                    expect( dialog.screenshots[0].base64 ).to.be.an( 'string' );
+                    expect( dialog.screenshots[0].width ).to.equal( 460 );
+                    expect( dialog.screenshots[0].height ).to.equal( 350 );
+
+                    expect( dialog.screenshots[1].base64 ).to.be.an( 'string' );
+                    expect( dialog.screenshots[1].width ).to.equal( 320 );
+                    expect( dialog.screenshots[1].height ).to.equal( 150 );
+                } );
+        } );
+
         it( 'should use dialog screenshot from database', () => {
             /** @type {DialogDiffer.Dialog} */
             const dialog = {

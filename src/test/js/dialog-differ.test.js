@@ -91,6 +91,10 @@ describe( 'DialogDiffer', () => {
                         version: 1,
                         id: 1,
                         url: createDialogURL( 'dialog-one.html' ),
+                        options: {
+                            sizes: [{ width: 100, height: 200 }, { width: 300, height: 400 }],
+                            extra: { foo: 'bar' },
+                        }
                     },
                     {
                         version: 1,
@@ -104,6 +108,10 @@ describe( 'DialogDiffer', () => {
                         version: 2,
                         id: 1,
                         url: createDialogURL( 'dialog-two.html' ),
+                        options: {
+                            sizes: [{ width: 100, height: 200 }, { width: 300, height: 400 }],
+                            extra: { foo: 'bar' },
+                        }
                     },
                     {
                         version: 2,
@@ -135,12 +143,16 @@ describe( 'DialogDiffer', () => {
                     expect( suiteResult.results[0].original ).to.be.an( 'object' );
                     expect( suiteResult.results[0].original.version ).to.equal( suite.original[0].version );
                     expect( suiteResult.results[0].original.id ).to.equal( suite.original[0].id );
+                    expect( suiteResult.results[0].original.url ).to.equal( suite.original[0].url );
+                    expect( suiteResult.results[0].original.options ).to.equal( suite.original[0].options );
                     expect( suiteResult.results[0].original.screenshots ).to.be.an( 'array' );
                     expect( suiteResult.results[0].original.screenshots ).to.have.lengthOf( 2 );
 
                     expect( suiteResult.results[0].current ).to.be.an( 'object' );
                     expect( suiteResult.results[0].current.version ).to.equal( suite.current[0].version );
                     expect( suiteResult.results[0].current.id ).to.equal( suite.current[0].id );
+                    expect( suiteResult.results[0].current.url ).to.equal( suite.current[0].url );
+                    expect( suiteResult.results[0].current.options ).to.equal( suite.current[0].options );
                     expect( suiteResult.results[0].current.screenshots ).to.be.an( 'array' );
                     expect( suiteResult.results[0].current.screenshots ).to.have.lengthOf( 2 );
 

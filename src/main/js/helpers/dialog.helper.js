@@ -48,11 +48,11 @@ module.exports.createUniqueDialogResultId = ( options, dialogOriginal, dialogCur
 };
 
 /**
- * @param {DialogDiffer.Options} options
+ * @param {Array<{width: Number, height: Number}>} sizes
  * @param {DialogDiffer.Dialog} dialog
  * @param {Array<DialogDiffer.Database.DialogScreenshot>} dialogScreenshotsDb Sorted by width
  */
-module.exports.isDialogSnapped = ( options, dialog, dialogScreenshotsDb ) => {
+module.exports.isDialogSnapped = ( sizes, dialog, dialogScreenshotsDb ) => {
     if ( !dialogScreenshotsDb ) {
         return false;
     }
@@ -61,7 +61,7 @@ module.exports.isDialogSnapped = ( options, dialog, dialogScreenshotsDb ) => {
         return false;
     }
 
-    const sizes = Array.from( options.sizes ).sort( size => size.width );
+    sizes = Array.from( sizes ).sort( size => size.width );
     const sortedDialogScreenshotsDb = Array.from( dialogScreenshotsDb ).sort( dialogScreenshotDb => dialogScreenshotDb.width );
 
     if ( sizes.length === sortedDialogScreenshotsDb.length ) {
@@ -94,7 +94,7 @@ module.exports.collectSnappedDialogs = ( options, dialogs, dialogsScreenshotsDb 
     const nonSnappedCollection = {};
 
     dialogs.forEach( ( dialog, i ) => {
-        if ( !options.isForceSnap && self.isDialogSnapped( options, dialog, dialogsScreenshotsDb[i] ) ) {
+        if ( !options.isForceSnap && self.isDialogSnapped( this.getDialogSizes( options.sizes, dialog ), dialog, dialogsScreenshotsDb[i] ) ) {
             if ( dialog.hash ) {
                 if ( !snappedCollection[dialog.url] ) {
                     snappedCollection[dialog.url] = [];
@@ -125,4 +125,12 @@ module.exports.collectSnappedDialogs = ( options, dialogs, dialogsScreenshotsDb 
         nonSnappedCollection: Object.keys( nonSnappedCollection ).map( url => nonSnappedCollection[url] ),
     };
 
+};
+
+/**
+ * @param {Array<{width: Number, height: Number}>} sizes
+ * @param {DialogDiffer.Dialog} dialog
+ */
+module.exports.getDialogSizes = ( sizes, dialog ) => {
+    return dialog && dialog.options && dialog.options.sizes || sizes;
 };
