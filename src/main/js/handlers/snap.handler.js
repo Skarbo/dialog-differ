@@ -32,8 +32,11 @@ Horseman.registerAction( 'dialogScreenshot',
                 dialog.hash ? `#${dialog.hash}` : ''
             );
 
-            return self
-                .screenshotBase64( 'PNG' )
+            const chain = dialog.crop
+                ? self.cropBase64( dialog.crop, 'PNG' )
+                : self.screenshotBase64( 'PNG' );
+
+            return chain
                 .then( result => {
                     /** @type {DialogDiffer.DialogScreenshot} */
                     const dialogScreenshot = DialogHelper.createDialogScreenshot( size.width, size.height, `data:image/png;base64,${result}` );
@@ -99,7 +102,7 @@ class SnapHandler {
                     this.snapSuiteDialogs( suite.options, suite.original, { onSnap } ),
                     this.snapSuiteDialogs( suite.options, suite.current, { onSnap } ),
                 ] )
-                .then( () => (logger.log( TAG, 'snapSuite', 'Snapped suite' ), true) )
+                .then( () => ( logger.log( TAG, 'snapSuite', 'Snapped suite' ), true ) )
                 .then( () => fulfill( suite ) )
                 .catch( err => reject( ErrorHelper.createError( err, 'Could not snap Suite', ERROR_CONSTANTS.SNAP_SUITE_ERROR ) ) )
         } );
@@ -156,7 +159,7 @@ class SnapHandler {
                     } ) ) );
                 } )
                 .then( result => {
-                    fulfill( result.reduce( ( acc, cur ) => (acc = acc.concat( cur ), acc), [] ) );
+                    fulfill( result.reduce( ( acc, cur ) => ( acc = acc.concat( cur ), acc ), [] ) );
                 } )
                 .catch( err => reject( ErrorHelper.createError( err, 'Could not snap Suite dialogs', ERROR_CONSTANTS.SNAP_SUITE_DIALOGS_ERROR ) ) );
         } );
@@ -362,26 +365,57 @@ class SnapHandler {
 
                     logger.log( TAG, 'snapDialogsWithHashFromHorseman', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId( dialog ), dialog.hash );
 
-                    // change hash
                     chain = chain
-                        .evaluate( evaluateRedirectHash, dialog.hash )
                         .then( () => {
                             lastDialog = dialog.id;
                         } );
 
-                    // wait for selector
-                    if ( dialog.waitForSelector ) {
+                    // crop
+                    if ( dialog.crop ) {
+                        // full viewport
                         chain = chain
-                            .waitForSelector( dialog.waitForSelector );
-                    }
+                            .viewport( 1000, 1000 );
 
-                    // foreach dialog size
-                    sizes.forEach( size => {
+                        // foreach dialog size
+                        sizes.forEach( size => {
+                            // change hash
+                            chain = chain
+                                .evaluate( evaluateRedirectHash, dialog.hash
+                                    .replace( /%width%/, size.width )
+                                    .replace( /%height%/, size.height ) );
+
+                            // wait for selector
+                            if ( dialog.waitForSelector ) {
+                                chain = chain
+                                    .waitForSelector( dialog.waitForSelector );
+                            }
+
+                            // take screenshot
+                            chain = chain
+                                .wait( dialog.timeout || 0 )
+                                .dialogScreenshot( dialog, size, this.databaseHandler );
+                        } );
+                    }
+                    // no crop
+                    else {
+                        // change hash
                         chain = chain
-                            .viewport( size.width, size.height )
-                            .wait( dialog.timeout || 0 )
-                            .dialogScreenshot( dialog, size, this.databaseHandler )
-                    } );
+                            .evaluate( evaluateRedirectHash, dialog.hash );
+
+                        // wait for selector
+                        if ( dialog.waitForSelector ) {
+                            chain = chain
+                                .waitForSelector( dialog.waitForSelector );
+                        }
+
+                        // foreach dialog size
+                        sizes.forEach( size => {
+                            chain = chain
+                                .viewport( size.width, size.height )
+                                .wait( dialog.timeout || 0 )
+                                .dialogScreenshot( dialog, size, this.databaseHandler )
+                        } );
+                    }
 
                     // callback
                     if ( onSnap ) {

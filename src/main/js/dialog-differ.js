@@ -42,6 +42,7 @@
  * @property {String} url
  * @property {String} [hash]
  * @property {String} [waitForSelector]
+ * @property {String} [crop]
  * @property {Number} [timeout]
  * @property {{code: String, message: String, args: Object, stack: Object}} [error] Injected
  * @property {Array<DialogDiffer.DialogScreenshot>} [screenshots] Injected

@@ -130,6 +130,7 @@ module.exports.collectSnappedDialogs = ( options, dialogs, dialogsScreenshotsDb 
 /**
  * @param {Array<{width: Number, height: Number}>} sizes
  * @param {DialogDiffer.Dialog} dialog
+ * @returns {Array<{width: Number, height: Number}>}
  */
 module.exports.getDialogSizes = ( sizes, dialog ) => {
     return dialog && dialog.options && dialog.options.sizes || sizes;
