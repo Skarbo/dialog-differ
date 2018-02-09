@@ -11,6 +11,7 @@
 
 /**
  * @typedef {Object} DialogDiffer.DialogScreenshot
+ * @property {String} id
  * @property {String} base64
  * @property {Number} height
  * @property {Number} width
@@ -181,7 +182,7 @@ class DialogDiffer {
 
         return new Promise( ( fulfill, reject ) => {
             SuiteHelper.validateSuite( suite )
-                .then( () => databaseHandler.initDB( suite.options.database ) )
+                .then( () => databaseHandler.initDB( null, suite.options.database ) )
                 .then( () => differHandler.initSuiteResult( suite, { onStart } ) )
                 .then( () => snapHandler.snapSuite( suite, { onSnap } ) )
                 .then( () => differHandler.differSuite( suite, { onDiff, onEnd } ) )
@@ -221,7 +222,7 @@ class DialogDiffer {
             logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
 
             databaseHandler
-                .initDB( database )
+                .initDB( null, database )
                 .then( () => {
                     return databaseHandler.getSuiteResult( suiteId );
                 } )
@@ -317,7 +318,7 @@ class DialogDiffer {
             logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
 
             databaseHandler
-                .initDB( database )
+                .initDB( null, database )
                 .then( () => databaseHandler.getLastSuiteResults() )
                 .then( fulfill )
                 .catch( reject );
@@ -336,7 +337,7 @@ class DialogDiffer {
             logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
 
             databaseHandler
-                .initDB( database )
+                .initDB( null, database )
                 .then( () => databaseHandler.deleteDialogsScreenshots( dialogVersion ) )
                 .then( fulfill )
                 .catch( reject );
@@ -355,7 +356,7 @@ class DialogDiffer {
             logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
 
             databaseHandler
-                .initDB( database )
+                .initDB( null, database )
                 .then( () => databaseHandler.deleteSuiteResult( suiteId ) )
                 .then( fulfill )
                 .catch( reject );

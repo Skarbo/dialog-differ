@@ -1,4 +1,4 @@
-const lowDB = require( 'lowdb' );
+const LowDbDatabaseLayer = require( '../layers/lowdb-database.layer' );
 
 const ERROR_CONSTANTS = require( '../constants/error-constants' );
 const SUITE_CONSTANTS = require( '../constants/suite-constants' );
@@ -6,10 +6,6 @@ const SUITE_CONSTANTS = require( '../constants/suite-constants' );
 const SuiteHelper = require( '../helpers/suite.helper' );
 const DialogHelper = require( '../helpers/dialog.helper' );
 const ErrorHelper = require( '../helpers/error.helper' );
-
-const DIALOG_SCREENSHOTS_DB = 'dialog_screenshots';
-const DIALOG_DIFFS_RESULT_DB = 'dialog_diffs_result';
-const SUITE_RESULT_DB = 'suite_result';
 
 /**
  * @interface DialogDiffer.Database
@@ -67,43 +63,31 @@ const SUITE_RESULT_DB = 'suite_result';
  * @memberOf DialogDiffer.Database
  */
 
-let db = null;
+/** @type {AbstractDatabaseLayer} */
+let databaseLayer = null;
 
 /**
  * @class
  */
 class DatabaseHandler {
     /**
-     * @param {String} [dbFile] Uses in-memory if not given
+     * @param {AbstractDatabaseLayer} [databaseLayer_]
+     * @param {*} [args]
      */
-    initDB( dbFile = null ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                if ( !db ) {
-                    db = lowDB( dbFile );
+    initDB( databaseLayer_, args = null ) {
+        // use default database layer
+        if ( !databaseLayer_ ) {
+            databaseLayer_ = new LowDbDatabaseLayer()
+        }
 
-                    db._.mixin( require( 'lodash-id' ) );
-                }
+        databaseLayer = databaseLayer_;
 
-                db
-                    .defaults( {
-                        [DIALOG_SCREENSHOTS_DB]: [],
-                        [DIALOG_DIFFS_RESULT_DB]: [],
-                        [SUITE_RESULT_DB]: [],
-                    } )
-                    .write();
-
-                fulfill();
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not init DB', ERROR_CONSTANTS.INIT_DB_ERROR, { dbFile } ) );
-            }
-        } );
+        return databaseLayer.initDB( args )
     }
 
     clearDB() {
-        if ( db ) {
-            db.setState( {} );
+        if ( databaseLayer ) {
+            return databaseLayer.clearDB();
         }
         return Promise.resolve();
     }
@@ -112,7 +96,7 @@ class DatabaseHandler {
      * @return {Boolean}
      */
     isInitialized() {
-        return !!db;
+        return databaseLayer ? databaseLayer.isInitialized() : false;
     }
 
     /**
@@ -122,47 +106,31 @@ class DatabaseHandler {
      */
     saveDialogScreenshot( dialog, dialogScreenshot ) {
         return new Promise( ( fulfill, reject ) => {
-            try {
-                this
-                    .getDialogScreenshot( dialog, dialogScreenshot )
-                    .then( dialogScreenshotDb => {
-                        if ( dialogScreenshotDb ) {
-                            db
-                                .get( DIALOG_SCREENSHOTS_DB )
-                                .find( {
-                                    id: dialogScreenshotDb.id,
-                                } )
-                                .assign( {
-                                    base64: dialogScreenshot.base64,
-                                } )
-                                .write();
-
-                            dialogScreenshotDb = db
-                                .get( DIALOG_SCREENSHOTS_DB )
-                                .find( {
-                                    id: dialogScreenshotDb.id,
-                                } )
-                                .value();
-                        }
-                        else {
-                            dialogScreenshotDb = db
-                                .get( DIALOG_SCREENSHOTS_DB )
-                                .insert( {
-                                    dialogId: dialog.id,
-                                    dialogVersion: dialog.version,
-                                    height: dialogScreenshot.height,
-                                    width: dialogScreenshot.width,
-                                    base64: dialogScreenshot.base64,
-                                } )
-                                .write();
-                        }
-
-                        fulfill( dialogScreenshotDb );
-                    } );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not save dialog screenshot', ERROR_CONSTANTS.SAVE_DIALOG_SCREENSHOT_DB_ERROR, { dialog, dialogScreenshot } ) );
-            }
+            this
+                .getDialogScreenshot( dialog, dialogScreenshot )
+                .then( dialogScreenshotDb => {
+                    if ( dialogScreenshotDb ) {
+                        return databaseLayer
+                            .updateDialogScreenshot( {
+                                dialogScreenshotId: dialogScreenshotDb.id,
+                                dialogScreenshotBase64: dialogScreenshot.base64
+                            } )
+                    }
+                    else {
+                        return databaseLayer
+                            .newDialogScreenshot( {
+                                dialogId: dialog.id,
+                                dialogVersion: dialog.version,
+                                dialogScreenshotHeight: dialogScreenshot.height,
+                                dialogScreenshotWidth: dialogScreenshot.width,
+                                dialogScreenshotBase64: dialogScreenshot.base64,
+                            } )
+                    }
+                } )
+                .then( fulfill )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not save dialog screenshot', ERROR_CONSTANTS.SAVE_DIALOG_SCREENSHOT_DB_ERROR, { dialog, dialogScreenshot } ) );
+                } );
         } );
     }
 
@@ -172,23 +140,18 @@ class DatabaseHandler {
      * @return {Promise<DialogDiffer.Database.DialogScreenshot>}
      */
     getDialogScreenshot( dialog, dialogScreenshot ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                const dialogScreenshotDb = db
-                    .get( DIALOG_SCREENSHOTS_DB )
-                    .find( {
-                        dialogId: dialog.id,
-                        dialogVersion: dialog.version,
-                        height: dialogScreenshot.height,
-                        width: dialogScreenshot.width,
-                    } )
-                    .value();
-
-                fulfill( dialogScreenshotDb );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not get dialog screenshot', ERROR_CONSTANTS.GET_DIALOG_SCREENSHOT_DB_ERROR, { dialog, dialogScreenshot } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .getDialogScreenshot( {
+                    dialogId: dialog.id,
+                    dialogVersion: dialog.version,
+                    dialogScreenshotWidth: dialogScreenshot.width,
+                    dialogScreenshotHeight: dialogScreenshot.height,
+                } )
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not get dialog screenshot', ERROR_CONSTANTS.GET_DIALOG_SCREENSHOT_DB_ERROR, { dialog, dialogScreenshot } ) );
+                } );
         } );
     }
 
@@ -198,22 +161,17 @@ class DatabaseHandler {
      * @return {Promise<Array<DialogDiffer.Database.DialogScreenshot>>}
      */
     getDialogScreenshots( dialog, sizes ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                const dialogScreenshotDb = db
-                    .get( DIALOG_SCREENSHOTS_DB )
-                    .filter( dialogScreenshotDb => {
-                        const correctSize = sizes.filter( size => size.width === dialogScreenshotDb.width && size.height === dialogScreenshotDb.height ).length > 0;
-
-                        return dialogScreenshotDb.dialogId === dialog.id && dialogScreenshotDb.dialogVersion === dialog.version && correctSize;
-                    } )
-                    .value();
-
-                fulfill( dialogScreenshotDb );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not get dialog screenshots', ERROR_CONSTANTS.GET_DIALOG_SCREENSHOTS_DB_ERROR, { dialog } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .getDialogScreenshots( {
+                    dialogId: dialog.id,
+                    dialogVersion: dialog.version,
+                    sizes,
+                } )
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not get dialog screenshots', ERROR_CONSTANTS.GET_DIALOG_SCREENSHOTS_DB_ERROR, { dialog } ) );
+                } )
         } );
     }
 
@@ -233,22 +191,16 @@ class DatabaseHandler {
 
     /**
      * @param {String} dialogVersion
-     * @returns {Promise<Boolean, DialogDiffer.Error>}
+     * @returns {Promise<Boolean>}
      */
     deleteDialogsScreenshots( dialogVersion ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                db.get( DIALOG_SCREENSHOTS_DB )
-                    .remove( {
-                        dialogVersion: dialogVersion,
-                    } )
-                    .write();
-
-                fulfill( true );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not delete dialog screenshots', ERROR_CONSTANTS.DELETE_DIALOGS_SCREENSHOTS_DB_ERROR, { dialogVersion } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .deleteDialogsScreenshots( dialogVersion )
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not delete dialog screenshots', ERROR_CONSTANTS.DELETE_DIALOGS_SCREENSHOTS_DB_ERROR, { dialogVersion } ) );
+                } );
         } );
     }
 
@@ -260,25 +212,22 @@ class DatabaseHandler {
      * @returns {Promise<{dialogsResult: DialogDiffer.DialogsResult, dialogsResultDb: DialogDiffer.Database.DialogsResult}>}
      */
     saveDialogsResult( options, dialogOriginal, dialogCurrent, dialogsResult ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                const dialogsResultDb = db
-                    .get( DIALOG_DIFFS_RESULT_DB )
-                    .insert( {
-                        dialogId: dialogsResult.dialogId,
-                        originalVersion: dialogsResult.originalVersion,
-                        currentVersion: dialogsResult.currentVersion,
-                        options: SuiteHelper.createUniqueOptionsId( options ),
-                        result: dialogsResult.result,
-                        differ: dialogsResult.differ,
-                    } )
-                    .write();
-
-                fulfill( { dialogsResult: dialogsResult, dialogResultDb: dialogsResultDb } );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not save dialogs diff result', ERROR_CONSTANTS.SAVE_DIALOGS_DIFF_RESULT_DB_ERROR, { options, dialogOriginal, dialogCurrent, dialogsResult } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .newDialogsResult( {
+                    dialogId: dialogsResult.dialogId,
+                    originalVersion: dialogsResult.originalVersion,
+                    currentVersion: dialogsResult.currentVersion,
+                    options: SuiteHelper.createUniqueOptionsId( options ),
+                    result: dialogsResult.result,
+                    differ: dialogsResult.differ,
+                } )
+                .then( dialogsResultDb => {
+                    resolve( { dialogsResult: dialogsResult, dialogResultDb: dialogsResultDb } );
+                } )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not save dialogs diff result', ERROR_CONSTANTS.SAVE_DIALOGS_DIFF_RESULT_DB_ERROR, { options, dialogOriginal, dialogCurrent, dialogsResult } ) );
+                } );
         } );
     }
 
@@ -290,23 +239,18 @@ class DatabaseHandler {
      * @returns {Promise<DialogDiffer.Database.DialogsResult>}
      */
     getDialogsResult( options, dialogId, originalVersion, currentVersion ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                const dialogsDiffResultDb = db
-                    .get( DIALOG_DIFFS_RESULT_DB )
-                    .find( {
-                        dialogId: dialogId,
-                        originalVersion: originalVersion,
-                        currentVersion: currentVersion,
-                        options: SuiteHelper.createUniqueOptionsId( options ),
-                    } )
-                    .value();
-
-                fulfill( dialogsDiffResultDb );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not get dialogs diff result', ERROR_CONSTANTS.GET_DIALOG_SCREENSHOT_DB_ERROR, { options, dialogOriginal, dialogCurrent } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .getDialogsResult( {
+                    dialogId: dialogId,
+                    originalVersion: originalVersion,
+                    currentVersion: currentVersion,
+                    options: SuiteHelper.createUniqueOptionsId( options ),
+                } )
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not get dialogs diff result', ERROR_CONSTANTS.GET_DIALOG_SCREENSHOT_DB_ERROR, { options, dialogId, originalVersion, currentVersion } ) );
+                } );
         } );
     }
 
@@ -315,33 +259,28 @@ class DatabaseHandler {
      * @return {Promise<DialogDiffer.Database.SuiteResult>}
      */
     newSuiteResult( suite ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                const suiteResultDb = db
-                    .get( SUITE_RESULT_DB )
-                    .insert( {
-                        status: SUITE_CONSTANTS.RUNNING_STATUS,
-                        errorCode: null,
-                        timestamp: Date.now(),
-                        options: suite.options,
-                        stats: {
-                            identical: 0,
-                            changed: 0,
-                            added: 0,
-                            deleted: 0,
-                            duration: 0,
-                            error: 0,
-                            dialogs: Math.max( ( suite.original || [] ).length, ( suite.current || [] ).length ),
-                        },
-                        dialogsResult: []
-                    } )
-                    .write();
-
-                fulfill( suiteResultDb );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not save suite result', ERROR_CONSTANTS.NEW_SUITE_RESULT_DB_ERROR, { suite } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .newSuiteResult( {
+                    status: SUITE_CONSTANTS.RUNNING_STATUS,
+                    errorCode: null,
+                    timestamp: Date.now(),
+                    options: suite.options,
+                    stats: {
+                        identical: 0,
+                        changed: 0,
+                        added: 0,
+                        deleted: 0,
+                        duration: 0,
+                        error: 0,
+                        dialogs: Math.max( (suite.original || []).length, (suite.current || []).length ),
+                    },
+                    dialogsResult: []
+                } )
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not save suite result', ERROR_CONSTANTS.NEW_SUITE_RESULT_DB_ERROR, { suite } ) );
+                } );
         } );
     }
 
@@ -351,69 +290,57 @@ class DatabaseHandler {
      */
     saveSuiteResult( suiteResult ) {
         return new Promise( ( fulfill, reject ) => {
-            try {
-                db
-                    .get( SUITE_RESULT_DB )
-                    .find( { id: suiteResult.id } )
-                    .assign( {
-                        status: suiteResult.status,
-                        stats: suiteResult.stats,
-                        results: suiteResult.results
-                            .map( dialogsResult => {
-                                return {
-                                    dialogId: dialogsResult.dialogId,
-                                    originalVersion: dialogsResult.originalVersion,
-                                    currentVersion: dialogsResult.currentVersion,
-                                    original: dialogsResult.original ? {
-                                        version: dialogsResult.originalVersion,
-                                        id: dialogsResult.original.id,
-                                        url: dialogsResult.original.url,
-                                        hash: dialogsResult.original.hash,
-                                        options: dialogsResult.original.options || {},
-                                    } : null,
-                                    current: dialogsResult.current ? {
-                                        version: dialogsResult.currentVersion,
-                                        id: dialogsResult.current.id,
-                                        url: dialogsResult.current.url,
-                                        hash: dialogsResult.current.hash,
-                                        options: dialogsResult.current.options || {},
-                                    } : null,
-                                    result: dialogsResult.result,
-                                };
-                            } )
-                    } )
-                    .write();
-
-                fulfill( suiteResult );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not save suite result', ERROR_CONSTANTS.SAVE_SUITE_RESULT_DB_ERROR, { suiteResult } ) );
-            }
+            databaseLayer
+                .updateSuiteResult( suiteResult.id, {
+                    status: suiteResult.status,
+                    stats: suiteResult.stats,
+                    results: suiteResult.results
+                        .map( dialogsResult => {
+                            return {
+                                dialogId: dialogsResult.dialogId,
+                                originalVersion: dialogsResult.originalVersion,
+                                currentVersion: dialogsResult.currentVersion,
+                                original: dialogsResult.original ? {
+                                    version: dialogsResult.originalVersion,
+                                    id: dialogsResult.original.id,
+                                    url: dialogsResult.original.url,
+                                    hash: dialogsResult.original.hash,
+                                    options: dialogsResult.original.options || {},
+                                } : null,
+                                current: dialogsResult.current ? {
+                                    version: dialogsResult.currentVersion,
+                                    id: dialogsResult.current.id,
+                                    url: dialogsResult.current.url,
+                                    hash: dialogsResult.current.hash,
+                                    options: dialogsResult.current.options || {},
+                                } : null,
+                                result: dialogsResult.result,
+                            };
+                        } )
+                } )
+                .then( fulfill )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not save suite result', ERROR_CONSTANTS.SAVE_SUITE_RESULT_DB_ERROR, { suiteResult } ) );
+                } )
         } );
     }
 
     /**
      * @param {DialogDiffer.Suite} suite
      * @param {DialogDiffer.Error} err
-     * @return {Promise<DialogDiffer.Suite, DialogDiffer.Error>}
+     * @return {Promise<DialogDiffer.Suite>}
      */
     saveSuiteResultError( suite, err ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                db
-                    .get( SUITE_RESULT_DB )
-                    .find( { id: suite.id } )
-                    .assign( {
-                        status: SUITE_CONSTANTS.ERROR_STATUS,
-                        errorCode: err.code,
-                    } )
-                    .write();
-
-                fulfill( suite );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not save suite result', ERROR_CONSTANTS.SAVE_SUITE_RESULT_DB_ERROR, { suiteResult } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .updateSuiteResult( suite.id, {
+                    status: SUITE_CONSTANTS.ERROR_STATUS,
+                    errorCode: err.code,
+                } )
+                .then( () => resolve( suite ) )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not save suite result', ERROR_CONSTANTS.SAVE_SUITE_RESULT_DB_ERROR, { suite } ) );
+                } );
         } );
     }
 
@@ -422,18 +349,13 @@ class DatabaseHandler {
      * @return {Promise<DialogDiffer.Database.SuiteResult|null>}
      */
     getSuiteResult( suiteId ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                const suiteResultsDb = db
-                    .get( SUITE_RESULT_DB )
-                    .find( { id: suiteId } )
-                    .value();
-
-                fulfill( suiteResultsDb );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not get suite results', ERROR_CONSTANTS.GET_SUITE_RESULTS_DB_ERROR ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .getSuiteResult( suiteId )
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not get suite results', ERROR_CONSTANTS.GET_SUITE_RESULTS_DB_ERROR ) );
+                } )
         } );
     }
 
@@ -441,19 +363,13 @@ class DatabaseHandler {
      * @return {Promise<Array<DialogDiffer.Database.SuiteResult>>}
      */
     getLastSuiteResults() {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                const suiteResultsDb = db
-                    .get( SUITE_RESULT_DB )
-                    .sortBy( 'timestamp' )
-                    .reverse()
-                    .value();
-
-                fulfill( suiteResultsDb );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not get suite results', ERROR_CONSTANTS.GET_SUITE_RESULTS_DB_ERROR ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .getLastSuiteResults()
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not get suite results', ERROR_CONSTANTS.GET_SUITE_RESULTS_DB_ERROR ) );
+                } );
         } );
     }
 
@@ -462,19 +378,13 @@ class DatabaseHandler {
      * @returns {Promise<Boolean, DialogDiffer.Error>}
      */
     deleteSuiteResult( suiteId ) {
-        return new Promise( ( fulfill, reject ) => {
-            try {
-                db.get( SUITE_RESULT_DB )
-                    .remove( {
-                        id: suiteId,
-                    } )
-                    .write();
-
-                fulfill( true );
-            }
-            catch ( err ) {
-                reject( ErrorHelper.createError( err, 'Could not delete suite result', ERROR_CONSTANTS.DELETE_SUITE_RESULT_DB_ERROR, { suiteId } ) );
-            }
+        return new Promise( ( resolve, reject ) => {
+            databaseLayer
+                .deleteSuiteResult( suiteId )
+                .then( resolve )
+                .catch( err => {
+                    reject( ErrorHelper.createError( err, 'Could not delete suite result', ERROR_CONSTANTS.DELETE_SUITE_RESULT_DB_ERROR, { suiteId } ) );
+                } );
         } );
     }
 }
