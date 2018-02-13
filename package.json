@@ -1,6 +1,6 @@
 {
   "name": "dialog-differ",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Dialog differ",
   "main": "index.js",
   "scripts": {
@@ -9,15 +9,15 @@
   "author": "Kris Skarbo",
   "license": "ISC",
   "dependencies": {
+    "base64-arraybuffer": "^0.1.5",
     "base64-img": "^1.0.3",
+    "bluebird": "latest",
+    "extend": "latest",
     "image-diff": "^1.6.3",
     "lodash-id": "^0.14.0",
     "lowdb": "^0.16.2",
-    "node-horseman": "^3.3.0",
-    "phantom": "^2.0.10",
-    "tmp": "0.0.31",
-    "extend": "latest",
-    "bluebird": "latest"
+    "puppeteer": "^1.0.0",
+    "tmp": "0.0.31"
   },
   "devDependencies": {
     "chai": "^4.1.0",

@@ -22,7 +22,7 @@ describe( 'DialogDiffer', () => {
     let databaseHandler = new DatabaseHandler();
 
     beforeEach( () => {
-        config.horsemanTimeout = 1000;
+        config.browserTimeout = 1000;
         logger.clear();
         return databaseHandler
             .clearDB()
@@ -74,7 +74,7 @@ describe( 'DialogDiffer', () => {
                     expect( suiteResult.results[0].differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
                     expect( suiteResult.results[0].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
                 } );
-        } );
+        } ).timeout( 4000 );
     } );
 
     describe( 'getSuiteResult', () => {
@@ -190,6 +190,6 @@ describe( 'DialogDiffer', () => {
                     expect( suiteResult.results[2].differ[1].result ).to.equal( DIFFER_CONSTANTS.ADDED_DIFFER_RESULT );
                     expect( suiteResult.results[2].differ[1].base64 ).to.equal( null );
                 } );
-        } );
+        } ).timeout( 4000 );
     } );
 } );

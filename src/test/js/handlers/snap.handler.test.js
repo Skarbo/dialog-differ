@@ -23,7 +23,7 @@ describe( 'snap handler', () => {
     const snapHandler = new SnapHandler( databaseHandler );
 
     beforeEach( () => {
-        config.horsemanTimeout = 1000;
+        config.browserTimeout = 1000;
         logger.clear();
 
         return databaseHandler
@@ -107,7 +107,7 @@ describe( 'snap handler', () => {
                     expect( dialog.screenshots ).to.be.an( 'array' );
                     expect( dialog.screenshots ).to.have.lengthOf( 1 );
 
-                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER } ) ).to.have.lengthOf( 1 );
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_BROWSER_LOGGER } ) ).to.have.lengthOf( 1 );
                     expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER } ) ).to.have.lengthOf( 0 );
 
                     return snapHandler.snapDialog( options, dialog );
@@ -136,19 +136,57 @@ describe( 'snap handler', () => {
 
             return snapHandler.snapDialog( options, dialog )
                 .then( dialog => {
-                    console.log( JSON.stringify( dialog, null, 2 ) );
+                    //console.log( JSON.stringify( dialog, null, 2 ) );
 
                     expect( dialog ).to.be.an( 'object' );
 
                     expect( dialog.error ).to.be.an( 'object' );
-                    expect( dialog.error.code ).to.equal( ERROR_CONSTANTS.SNAP_DIALOG_FROM_HORSEMAN_ERROR );
+                    expect( dialog.error.code ).to.equal( ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR );
                     expect( dialog.error.message ).to.be.an( 'string' );
                 } );
         } ).timeout( 4000 );
     } );
 
     describe( 'snapSuiteDialogs', () => {
-        it( 'should snap suite', () => {
+        it( 'should snap suite with hash dialogs', function () {
+            this.timeout( 4000 );
+
+            /** @type {DialogDiffer.Dialog} */
+            const firstDialog = {
+                id: '1',
+                version: '1',
+                url: createDialogURL( 'dialog-hash.html' ),
+                hash: 'First'
+            };
+
+            /** @type {DialogDiffer.Dialog} */
+            const secondDialog = {
+                id: '2',
+                version: '1',
+                url: createDialogURL( 'dialog-hash.html' ),
+                hash: 'Second'
+            };
+
+            /** @type {DialogDiffer.Options} */
+            const options = {
+                sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]
+            };
+
+            return snapHandler
+                .snapSuiteDialogs( options, [firstDialog, secondDialog] )
+                .then( dialogs => {
+                    console.log( JSON.stringify( dialogs, null, 2 ) );
+
+                    expect( dialogs ).to.be.an( 'array' );
+                    expect( dialogs ).to.have.lengthOf( 2 );
+                    expect( dialogs[0].screenshots[0].base64, 'large screenshot should not equal small screenshot' ).to.not.equal( dialogs[0].screenshots[1].base64 );
+                    expect( dialogs[0].screenshots[0].base64, 'first dialog screenshot should not equal second dialog screenshot' ).to.not.equal( dialogs[1].screenshots[0].base64 );
+                } );
+        } );
+
+        it( 'should snap suite with mixed dialogs', function () {
+            this.timeout( 4000 );
+
             /** @type {DialogDiffer.Dialog} */
             const firstDialog = {
                 id: '1',
@@ -177,9 +215,10 @@ describe( 'snap handler', () => {
                 sizes: [{ width: 460, height: 350 }, { width: 320, height: 150 }]
             };
 
-            return snapHandler.snapSuiteDialogs( options, [firstDialog, secondDialog, secondThird] )
+            return snapHandler
+                .snapSuiteDialogs( options, [firstDialog, secondDialog, secondThird] )
                 .then( dialogs => {
-                    // console.log( JSON.stringify( dialogs, null, 2 ) );
+                    console.log( JSON.stringify( dialogs, null, 2 ) );
 
                     expect( dialogs ).to.be.an( 'array' );
                     expect( dialogs ).to.have.lengthOf( 3 );
@@ -187,7 +226,7 @@ describe( 'snap handler', () => {
         } );
 
         it( 'should snap suite from already snapped dialogs', function () {
-            this.timeout( 4000 );
+            this.timeout( 10000 );
 
             /** @type {DialogDiffer.Dialog} */
             const firstDialog = {
@@ -233,7 +272,7 @@ describe( 'snap handler', () => {
                     expect( dialogs ).to.be.an( 'array' );
                     expect( dialogs ).to.have.lengthOf( 3 );
 
-                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER } ) ).to.have.lengthOf( 6 );
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_BROWSER_LOGGER } ) ).to.have.lengthOf( 6 );
                     expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_DATABASE_LOGGER } ) ).to.have.lengthOf( 0 );
 
                     logger.clear();
@@ -244,7 +283,7 @@ describe( 'snap handler', () => {
                     expect( dialogs ).to.be.an( 'array' );
                     expect( dialogs ).to.have.lengthOf( 4 );
 
-                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER } ) ).to.have.lengthOf( 2 );
+                    expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOT_FROM_BROWSER_LOGGER } ) ).to.have.lengthOf( 2 );
                     expect( logger.getCollections( { code: LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER } ) ).to.have.lengthOf( 3 );
                 } );
         } );
@@ -276,14 +315,16 @@ describe( 'snap handler', () => {
                     expect( dialogs[0].screenshots ).to.have.lengthOf( 0 );
 
                     expect( dialogs[0].error ).to.be.an( 'object' );
-                    expect( dialogs[0].error.code ).to.equal( ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_HORSEMAN_ERROR );
+                    expect( dialogs[0].error.code ).to.equal( ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR );
                     expect( dialogs[0].error.message ).to.be.an( 'string' );
                 } );
         } ).timeout( 4000 );
     } );
 
     describe( 'getSuiteResult', () => {
-        it( 'should get suite result', () => {
+        it( 'should get suite result', function () {
+            this.timeout( 4000 );
+
             /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {

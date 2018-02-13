@@ -130,6 +130,8 @@
  * @memberOf DialogDiffer
  */
 
+process.setMaxListeners(0);
+
 const TAG = 'DialogDiffer';
 
 const DatabaseHandler = require( './handlers/database.handler' );

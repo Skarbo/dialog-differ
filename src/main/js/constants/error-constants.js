@@ -5,9 +5,9 @@ module.exports = {
     SNAP_SUITE_DIALOGS_ERROR: 'snap-suite-dialogs-error',
     SNAP_DIALOGS_WITH_HASH: 'snap-dialogs-with-hash-error',
     SNAP_DIALOG_ERROR: 'snap-dialog-error',
-    SNAP_DIALOG_FROM_HORSEMAN_ERROR: 'snap-dialog-from-horseman-error',
+    SNAP_DIALOG_FROM_BROWSER_ERROR: 'snap-dialog-from-browser-error',
     SNAP_DIALOGS_WITH_HASH_FROM_DB_ERROR: 'snap-dialogs-with-hash-from-db-error',
-    SNAP_DIALOGS_WITH_HASH_FROM_HORSEMAN_ERROR: 'snap-dialogs-with-hash-from-horseman-error',
+    SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR: 'snap-dialogs-with-hash-from-browser-error',
     DIALOG_SCREENSHOT_ERROR: 'dialog-screenshot-error',
 
     GET_SUITE_ERROR: 'get-suite-error',

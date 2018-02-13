@@ -1,6 +1,8 @@
 const TAG = 'Snap';
 
-const Horseman = require( 'node-horseman' );
+const puppeteer = require( 'puppeteer' );
+const Promise = require( 'bluebird' );
+const base64ArrayBuffer = require( 'base64-arraybuffer' );
 
 const logger = require( '../logger' );
 
@@ -12,48 +14,58 @@ const ERROR_CONSTANTS = require( '../constants/error-constants' );
 const DialogHelper = require( '../helpers/dialog.helper' );
 const ErrorHelper = require( '../helpers/error.helper' );
 
-Horseman.registerAction( 'dialogScreenshot',
-    /**
-     * @param {DialogDiffer.Dialog} dialog
-     * @param {{height: Number, width: Number}} size
-     * @param {DatabaseHandler} databaseHandler
-     * @return {Promise<DialogDiffer.Dialog>}
-     */
-    function ( dialog, size, databaseHandler ) {
-        const self = this;
+function getElementClip( selector ) {
+    /*eslint-disable */
+    var iframe = document.querySelector( selector );
 
-        return new Promise( ( fulfill, reject ) => {
-            logger.log(
-                TAG,
-                'dialogScreenshot',
-                'Taking screenshot \'%s\', \'%s%s\'',
-                LOGGER_CONSTANTS.SCREENSHOT_FROM_HORSEMAN_LOGGER, DialogHelper.createUniqueDialogScreenshotId( dialog, { width: size.width, height: size.height } ),
-                dialog.url,
-                dialog.hash ? `#${dialog.hash}` : ''
-            );
+    return {
+        y: iframe.offsetTop,
+        x: iframe.offsetLeft,
+        width: iframe.clientWidth,
+        height: iframe.clientHeight
+    };
+    /*eslint-enable */
+}
 
-            const chain = dialog.crop
-                ? self.cropBase64( dialog.crop, 'PNG' )
-                : self.screenshotBase64( 'PNG' );
+function puppeteerScreenshot( page, dialog, size, databaseHandler ) {
+    return new Promise( ( resolve, reject ) => {
+        const takeScreenshot = () => {
+            if ( dialog.crop ) {
+                return page
+                    .evaluate( getElementClip, dialog.crop )
+                    .then( clip => page.screenshot( { clip } ) );
+            }
+            else {
+                return page.screenshot();
+            }
+        };
 
-            return chain
-                .then( result => {
-                    /** @type {DialogDiffer.DialogScreenshot} */
-                    const dialogScreenshot = DialogHelper.createDialogScreenshot( size.width, size.height, `data:image/png;base64,${result}` );
+        logger.log(
+            TAG,
+            'dialogScreenshot',
+            'Taking screenshot \'%s\', \'%s%s\'',
+            LOGGER_CONSTANTS.SCREENSHOT_FROM_BROWSER_LOGGER, DialogHelper.createUniqueDialogScreenshotId( dialog, { width: size.width, height: size.height } ),
+            dialog.url,
+            dialog.hash ? `#${dialog.hash}` : ''
+        );
 
-                    dialog.screenshots.push( dialogScreenshot );
+        takeScreenshot()
+            .then( screenshot => {
+                /** @type {DialogDiffer.DialogScreenshot} */
+                const dialogScreenshot = DialogHelper.createDialogScreenshot( size.width, size.height, `data:image/png;base64,${base64ArrayBuffer.encode( screenshot )}` );
 
-                    // save screenshot to database
-                    return databaseHandler.saveDialogScreenshot( dialog, dialogScreenshot );
-                } )
-                .then( fulfill )
-                .catch( err => reject( ErrorHelper.createError( err, 'Could not take dialog screenshot', ERROR_CONSTANTS.DIALOG_SCREENSHOT_ERROR ) ) );
-        } );
+                dialog.screenshots.push( dialogScreenshot );
+
+                // save screenshot to database
+                return databaseHandler.saveDialogScreenshot( dialog, dialogScreenshot );
+            } )
+            .then( resolve )
+            .catch( err => reject( ErrorHelper.createError( err, 'Could not take dialog screenshot', ERROR_CONSTANTS.DIALOG_SCREENSHOT_ERROR ) ) );
     } );
+}
 
 /**
  * Stop CSS animations
- *  This will run in PhantomJS environment
  */
 function evaluateStopCSSAnimations() {
     /*eslint-disable */
@@ -74,7 +86,6 @@ function evaluateStopCSSAnimations() {
 
 /**
  * Redirects location hash
- *  This will run in PhantomJS environment
  * @param {String} hash
  */
 function evaluateRedirectHash( hash ) {
@@ -97,11 +108,8 @@ class SnapHandler {
         return new Promise( ( fulfill, reject ) => {
             logger.log( TAG, 'snapSuite', 'Snapping suite..', null, suite );
 
-            Promise
-                .all( [
-                    this.snapSuiteDialogs( suite.options, suite.original, { onSnap } ),
-                    this.snapSuiteDialogs( suite.options, suite.current, { onSnap } ),
-                ] )
+            this.snapSuiteDialogs( suite.options, suite.original, { onSnap } )
+                .then( () => this.snapSuiteDialogs( suite.options, suite.current, { onSnap } ) )
                 .then( () => ( logger.log( TAG, 'snapSuite', 'Snapped suite' ), true ) )
                 .then( () => fulfill( suite ) )
                 .catch( err => reject( ErrorHelper.createError( err, 'Could not snap Suite', ERROR_CONSTANTS.SNAP_SUITE_ERROR ) ) )
@@ -128,7 +136,7 @@ class SnapHandler {
                 .then( dialogsScreenshotsDb => {
                     const dialogsCollection = DialogHelper.collectSnappedDialogs( options, dialogs, dialogsScreenshotsDb );
 
-                    return Promise.all( [].concat( dialogsCollection.snappedCollection.map( par => {
+                    return Promise.each( [].concat( dialogsCollection.snappedCollection.map( par => {
                         // snapped collection
                         if ( Array.isArray( par ) ) {
                             return this.snapDialogsWithHashFromDatabase(
@@ -143,20 +151,20 @@ class SnapHandler {
                     } ), dialogsCollection.nonSnappedCollection.map( par => {
                         // non snapped collection
                         if ( Array.isArray( par ) ) {
-                            return this.snapDialogsWithHashFromHorseman(
+                            return this.snapDialogsWithHashFromBrowser(
                                 options,
                                 par.map( snappedCollectedDialog => snappedCollectedDialog.dialog ),
                                 { onSnap }
                             );
                         }
                         else {
-                            return this.snapDialogFromHorseman(
+                            return this.snapDialogFromBrowser(
                                 options,
                                 par.dialog,
                                 { onSnap }
                             );
                         }
-                    } ) ) );
+                    } ) ), par => par );
                 } )
                 .then( result => {
                     fulfill( result.reduce( ( acc, cur ) => ( acc = acc.concat( cur ), acc ), [] ) );
@@ -185,9 +193,9 @@ class SnapHandler {
                     if ( DialogHelper.isDialogSnapped( DialogHelper.getDialogSizes( options.sizes, dialog ), dialog, dialogScreenshotsDb ) && !options.isForceSnap ) {
                         return this.snapDialogFromDatabase( dialog, dialogScreenshotsDb );
                     }
-                    // snap dialog using horseman
+                    // snap dialog using browser
                     else {
-                        return this.snapDialogFromHorseman( options, dialog );
+                        return this.snapDialogFromBrowser( options, dialog );
                     }
                 } )
                 .then( () => ( onSnap ? onSnap( dialog ) : null ) )
@@ -204,9 +212,9 @@ class SnapHandler {
      * @private
      */
     snapDialogFromDatabase( dialog, dialogScreenshotsDb, { onSnap } = {} ) {
-        logger.log( TAG, 'snapDialogFromDatabase', 'Snapping dialog \'%s\' from database', null, dialog.id );
-
         return new Promise( ( fulfill ) => {
+            logger.log( TAG, 'snapDialogFromDatabase', 'Snapping dialog \'%s\' from database', null, dialog.id );
+
             // append dialog screenshots from database
             dialogScreenshotsDb.forEach( dialogScreenshotDb => {
                 dialog.screenshots.push( DialogHelper.createDialogScreenshot( dialogScreenshotDb.width, dialogScreenshotDb.height, dialogScreenshotDb.base64 ) );
@@ -229,11 +237,9 @@ class SnapHandler {
      * @return {Promise<DialogDiffer.Dialog>}
      * @private
      */
-    snapDialogFromHorseman( options, dialog, { onSnap } = {} ) {
-        logger.log( TAG, 'snapDialogFromHorseman', 'Snapping dialog \'%s\' from horseman', null, dialog.id );
-
+    snapDialogFromBrowser( options, dialog, { onSnap } = {} ) {
         function onError( err ) {
-            err = ErrorHelper.createError( err, 'Could not snap dialog from Horseman. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOG_FROM_HORSEMAN_ERROR, dialog.version, dialog.id, dialog.url, { options } );
+            err = ErrorHelper.createError( err, 'Could not snap dialog from Browser. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR, dialog.version, dialog.id, dialog.url, { options } );
 
             dialog.error = {
                 code: err.code,
@@ -242,53 +248,82 @@ class SnapHandler {
                 stack: err.stack,
             };
 
-            logger.error( TAG, 'snapDialogFromHorseman', err.message, err.code, ...err.args, err.stack );
+            logger.error( TAG, 'snapDialogFromBrowser', err.message, err.code, ...err.args, err.stack );
         }
 
         return new Promise( ( fulfill ) => {
             try {
-                const horseman = new Horseman( {
-                    timeout: config.horsemanTimeout,
-                } );
+                logger.log( TAG, 'snapDialogFromBrowser', 'Snapping dialog \'%s\' from browser', null, dialog.id );
+
                 const sizes = DialogHelper.getDialogSizes( options.sizes, dialog );
+                let browser;
+                let page;
 
-                let chain = horseman
-                    .on( 'error', msg => {
-                        logger.warn( TAG, 'snapDialogFromHorseman', 'Error in dialog. Message: \'%s\'. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOG_FROM_HORSEMAN_ERROR, msg, dialog.version, dialog.id, dialog.url );
+                puppeteer.launch( {
+                    timeout: config.browserTimeout,
+                } )
+                    .then( browser_ => {
+                        browser = browser_;
+                        return browser.newPage();
                     } )
-                    .open( dialog.url )
-                    .evaluate( evaluateStopCSSAnimations );
+                    .then( page_ => {
+                        page = page_;
 
-                // wait for selector
-                if ( dialog.waitForSelector ) {
-                    chain = chain
-                        .waitForSelector( dialog.waitForSelector );
-                }
+                        page.on( 'error', msg => {
+                            logger.warn( TAG, 'snapDialogFromBrowser', 'Error in dialog. Message: \'%s\'. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR, msg, dialog.version, dialog.id, dialog.url );
+                        } );
 
-                // foreach dialog size
-                sizes.forEach( size => {
-                    chain = chain
-                        .viewport( size.width, size.height )
-                        .wait( dialog.timeout || 0 )
-                        .dialogScreenshot( dialog, size, this.databaseHandler )
-                } );
+                        return page.goto( dialog.url, {
+                            timeout: config.browserTimeout,
+                        } )
+                    } )
+                    .then( () => page.evaluate( evaluateStopCSSAnimations ) )
+                    .then( () => {
+                        if ( dialog.waitForSelector ) {
+                            return page.waitForSelector( dialog.waitForSelector, {
+                                timeout: config.browserTimeout
+                            } );
+                        }
+                        return page
+                    } )
+                    .then( () => {
+                        logger.log( TAG, 'snapDialogFromBrowser', 'Dialog \'%s\'', null, DialogHelper.createUniqueDialogId( dialog ) );
 
-                // callback
-                if ( onSnap ) {
-                    chain = chain.then( () => {
-                        onSnap( dialog );
-                        return Promise.resolve( dialog );
-                    } );
-                }
-
-                chain
-                    .then( () => fulfill( dialog ) )
+                        // foreach dialog size
+                        return Promise.each( sizes, size => {
+                            return page
+                                .setViewport( size )
+                                .then( () => page.waitFor( dialog.timeout || 0 ) )
+                                .then( () => puppeteerScreenshot( page, dialog, size, this.databaseHandler ) )
+                        } );
+                    } )
+                    .then( () => {
+                        // callback
+                        if ( onSnap ) {
+                            onSnap( dialog );
+                        }
+                        return Promise.resolve();
+                    } )
+                    .then( () => {
+                        if ( browser ) {
+                            return browser.close();
+                        }
+                        return Promise.resolve()
+                    } )
+                    .then( () => {
+                        fulfill( dialog );
+                    } )
                     .catch( err => {
                         onError( err );
 
-                        fulfill( dialog );
-                    } )
-                    .close();
+                        if ( browser ) {
+                            browser.close()
+                                .then( () => fulfill( dialog ) );
+                        }
+                        else {
+                            fulfill( dialog );
+                        }
+                    } );
             }
             catch ( err ) {
                 onError( err );
@@ -305,9 +340,9 @@ class SnapHandler {
      * @private
      */
     snapDialogsWithHashFromDatabase( dialogs, dialogsScreenshotsDb, { onSnap } ) {
-        logger.log( TAG, 'snapDialogsWithHashFromDatabase', 'Snapping %d dialogs with hash from database', null, dialogs.length );
-
         return new Promise( ( fulfill, reject ) => {
+            logger.log( TAG, 'snapDialogsWithHashFromDatabase', 'Snapping %d dialogs with hash from database', null, dialogs.length );
+
             Promise
                 .all( dialogs.map( ( dialog, i ) => this.snapDialogFromDatabase( dialog, dialogsScreenshotsDb[i], { onSnap } ) ) )
                 .then( () => fulfill( dialogs ) )
@@ -322,17 +357,15 @@ class SnapHandler {
      * @returns {Promise<Array<DialogDiffer.Dialog>>}
      * @private
      */
-    snapDialogsWithHashFromHorseman( options, dialogs, { onSnap } = {} ) {
+    snapDialogsWithHashFromBrowser( options, dialogs, { onSnap } = {} ) {
         const dialogUrl = dialogs[0].url;
         const dialogVersion = dialogs[0].version;
         const dialogId = dialogs[0].id;
         const dialogHashList = dialogs.map( dialog => dialog.hash );
         let lastDialog = dialogs[0].id;
 
-        logger.log( TAG, 'snapDialogsWithHashFromHorseman', 'Snapping %d dialogs with hash from horseman', null, dialogs.length, dialogs.map( dialog => dialog.id ) );
-
         function onError( err ) {
-            err = ErrorHelper.createError( err, 'Could not snap dialogs with hash from Horseman. Url: \'%s\'. Version: \'%s\'. First id: \'%s\'. Last dialog id: \'%s\'. Hash list: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_HORSEMAN_ERROR, dialogUrl, dialogVersion, dialogId, lastDialog, dialogHashList.join( ', ' ) );
+            err = ErrorHelper.createError( err, 'Could not snap dialogs with hash from Browser. Url: \'%s\'. Version: \'%s\'. First id: \'%s\'. Last dialog id: \'%s\'. Hash list: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, dialogUrl, dialogVersion, dialogId, lastDialog, dialogHashList.join( ', ' ) );
 
             dialogs.forEach( dialog => {
                 dialog.error = {
@@ -343,96 +376,126 @@ class SnapHandler {
                 };
             } );
 
-            logger.error( TAG, 'snapDialogsWithHashFromHorseman', err.message, err.code, ...err.args, err.stack );
+            logger.error( TAG, 'snapDialogsWithHashFromBrowser', err.message, err.code, ...err.args, err.stack );
         }
 
         return new Promise( ( fulfill ) => {
             try {
-                const horseman = new Horseman( {
-                    timeout: config.horsemanTimeout,
-                } );
+                logger.log( TAG, 'snapDialogsWithHashFromBrowser', 'Snapping %d dialogs with hash from browser', null, dialogs.length, dialogs.map( dialog => dialog.id ) );
 
-                let chain = horseman
-                    .on( 'error', msg => {
-                        logger.warn( TAG, 'snapDialogsWithHashFromHorseman', 'Error in dialogs with hash. Message: \'%s\', Url: \'%s\'. Version: \'%s\'. First id: \'%s\'. Hash list: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_HORSEMAN_ERROR, msg, dialogUrl, dialogVersion, dialogId, dialogHashList.join( ', ' ) );
+                let browser;
+                let page;
+
+                puppeteer.launch( {
+                    timeout: config.browserTimeout,
+                } )
+                    .then( browser_ => {
+                        browser = browser_;
+                        return browser.newPage();
                     } )
-                    .open( dialogUrl )
-                    .evaluate( evaluateStopCSSAnimations );
+                    .then( page_ => {
+                        page = page_;
 
-                dialogs.forEach( dialog => {
-                    dialog.screenshots = [];
-                    const sizes = DialogHelper.getDialogSizes( options.sizes, dialog );
+                        page.on( 'error', msg => {
+                            logger.warn( TAG, 'snapDialogsWithHashFromBrowser', 'Error in dialogs with hash. Message: \'%s\', Url: \'%s\'. Version: \'%s\'. First id: \'%s\'. Hash list: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, msg, dialogUrl, dialogVersion, dialogId, dialogHashList.join( ', ' ) );
+                        } );
 
-                    logger.log( TAG, 'snapDialogsWithHashFromHorseman', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId( dialog ), dialog.hash );
-
-                    chain = chain
-                        .then( () => {
+                        return page.goto( dialogUrl, {
+                            timeout: config.browserTimeout,
+                        } )
+                    } )
+                    .then( () => page.evaluate( evaluateStopCSSAnimations ) )
+                    .then( () => {
+                        return Promise.each( dialogs, ( dialog => {
+                            dialog.screenshots = [];
                             lastDialog = dialog.id;
-                        } );
+                            const sizes = DialogHelper.getDialogSizes( options.sizes, dialog );
 
-                    // crop
-                    if ( dialog.crop ) {
-                        // full viewport
-                        chain = chain
-                            .viewport( 1000, 1000 );
+                            logger.log( TAG, 'snapDialogsWithHashFromBrowser', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId( dialog ), dialog.hash );
 
-                        // foreach dialog size
-                        sizes.forEach( size => {
-                            // change hash
-                            chain = chain
-                                .evaluate( evaluateRedirectHash, dialog.hash
-                                    .replace( /%width%/, size.width )
-                                    .replace( /%height%/, size.height ) );
-
-                            // wait for selector
-                            if ( dialog.waitForSelector ) {
-                                chain = chain
-                                    .waitForSelector( dialog.waitForSelector );
+                            // crop
+                            if ( dialog.crop ) {
+                                return page
+                                    .setViewport( { width: 1000, height: 1000 } ) // full viewport
+                                    .then( () => {
+                                        return Promise.each( sizes, size => {
+                                            return page
+                                            // change hash
+                                                .evaluate( evaluateRedirectHash, dialog.hash
+                                                    .replace( /%width%/, size.width )
+                                                    .replace( /%height%/, size.height ) )
+                                                .then( () => {
+                                                    // wait for selector
+                                                    if ( dialog.waitForSelector ) {
+                                                        return page.waitForSelector( dialog.waitForSelector, {
+                                                            timeout: config.browserTimeout
+                                                        } );
+                                                    }
+                                                    return page;
+                                                } )
+                                                .then( () => puppeteerScreenshot( page, dialog, size, this.databaseHandler ) )
+                                        } );
+                                    } )
+                                    .then( () => {
+                                        // callback
+                                        if ( onSnap ) {
+                                            onSnap( dialog );
+                                        }
+                                        return Promise.resolve( dialog );
+                                    } );
                             }
-
-                            // take screenshot
-                            chain = chain
-                                .wait( dialog.timeout || 0 )
-                                .dialogScreenshot( dialog, size, this.databaseHandler );
-                        } );
-                    }
-                    // no crop
-                    else {
-                        // change hash
-                        chain = chain
-                            .evaluate( evaluateRedirectHash, dialog.hash );
-
-                        // wait for selector
-                        if ( dialog.waitForSelector ) {
-                            chain = chain
-                                .waitForSelector( dialog.waitForSelector );
+                            // no crop
+                            else {
+                                // change hash
+                                return page
+                                    .evaluate( evaluateRedirectHash, dialog.hash )
+                                    .then( () => {
+                                        // wait for selector
+                                        if ( dialog.waitForSelector ) {
+                                            return page.waitForSelector( dialog.waitForSelector, {
+                                                timeout: config.browserTimeout
+                                            } );
+                                        }
+                                        return page
+                                    } )
+                                    .then( () => {
+                                        return Promise.each( sizes, size => {
+                                            return page
+                                                .setViewport( size )
+                                                .then( () => page.waitFor( dialog.timeout || 0 ) )
+                                                .then( () => puppeteerScreenshot( page, dialog, size, this.databaseHandler ) )
+                                        } )
+                                    } )
+                                    .then( () => {
+                                        // callback
+                                        if ( onSnap ) {
+                                            onSnap( dialog );
+                                        }
+                                        return Promise.resolve( dialog );
+                                    } );
+                            }
+                        } ) );
+                    } )
+                    .then( () => {
+                        if ( browser ) {
+                            return browser.close()
                         }
-
-                        // foreach dialog size
-                        sizes.forEach( size => {
-                            chain = chain
-                                .viewport( size.width, size.height )
-                                .wait( dialog.timeout || 0 )
-                                .dialogScreenshot( dialog, size, this.databaseHandler )
-                        } );
-                    }
-
-                    // callback
-                    if ( onSnap ) {
-                        chain = chain.then( () => {
-                            onSnap( dialog );
-                            return Promise.resolve( dialog );
-                        } );
-                    }
-                } );
-
-                chain
-                    .then( () => fulfill( dialogs ) )
-                    .catch( err => {
-                        onError( err );
+                        return Promise.resolve();
+                    } )
+                    .then( () => {
                         fulfill( dialogs );
                     } )
-                    .close();
+                    .catch( err => {
+                        onError( err );
+
+                        if ( browser ) {
+                            browser.close()
+                                .then( () => fulfill( dialogs ) );
+                        }
+                        else {
+                            fulfill( dialogs );
+                        }
+                    } );
             }
             catch ( err ) {
                 onError( err );

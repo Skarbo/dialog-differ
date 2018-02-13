@@ -28,7 +28,7 @@ describe( 'differ handler', () => {
 
     beforeEach( () => {
         logger.clear();
-        config.horsemanTimeout = 1000;
+        config.browserTimeout = 1000;
 
         return databaseHandler
             .clearDB()
@@ -367,6 +367,6 @@ describe( 'differ handler', () => {
                     expect( suiteResult.results[1].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
                     expect( suiteResult.results[1].differ[1].base64 ).to.be.a( 'string' );
                 } );
-        } )
+        } ).timeout( 4000 );
     } );
 } );

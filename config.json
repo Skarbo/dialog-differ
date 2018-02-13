@@ -1,3 +1,3 @@
 {
-  "horsemanTimeout": 10000
+  "browserTimeout": 10000
 }
