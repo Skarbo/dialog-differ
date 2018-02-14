@@ -9,5 +9,5 @@ try {
 if ( asyncawait ) {
     module.exports = require( './src/main/js/dialog-differ' );
 } else {
-    module.exports = require( './lib/dialog-differ' );
+    module.exports = require( './lib/main/js/dialog-differ' );
 }
