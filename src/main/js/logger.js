@@ -1,13 +1,13 @@
 const LOGGER_CONSTANTS = require( './constants/logger-constants' );
 
-const self = this;
-
 const collections = {
     logs: [],
     warns: [],
     errors: [],
     infos: []
 };
+
+let currentLevel = LOGGER_CONSTANTS.DEBUG_LOG_LEVEL;
 
 /**
  * @interface Logger
@@ -51,10 +51,10 @@ function createLogLevelNumber() {
 }
 
 function isLogLevel( level ) {
-    if ( self.level === LOGGER_CONSTANTS.NONE_LOG_LEVEL ) {
+    if ( currentLevel === LOGGER_CONSTANTS.NONE_LOG_LEVEL ) {
         return false;
     }
-    return createLogLevelNumber( level ) >= createLogLevelNumber( self.level );
+    return createLogLevelNumber( level ) >= createLogLevelNumber( currentLevel );
 }
 
 module.exports.log = ( tag, context, message, code, ...args ) => {
@@ -133,9 +133,9 @@ module.exports.getCollections = ( { type, tag, context, code } ) => {
     for ( let logType in collections ) {
         if ( !type || type === logType ) {
             filteredCollections = filteredCollections.concat( collections[logType].filter( log => {
-                return (( tag && log.tag === tag ) || !tag)
-                    && (( context && log.context === context ) || !context)
-                    && (( code && log.code === code  ) || !code );
+                return ( ( tag && log.tag === tag ) || !tag )
+                    && ( ( context && log.context === context ) || !context )
+                    && ( ( code && log.code === code ) || !code );
             } ) );
         }
     }
@@ -143,7 +143,8 @@ module.exports.getCollections = ( { type, tag, context, code } ) => {
     return filteredCollections;
 };
 
-module.exports.level = LOGGER_CONSTANTS.DEBUG_LOG_LEVEL;
+module.exports.level = currentLevel;
+module.exports.setLevel = ( level ) => currentLevel = level;
 /** @type {Array<Logger.Log>} */
 module.exports.logs = collections.logs;
 /** @type {Array<Logger.Log>} */

@@ -1,5 +1,3 @@
-const self = this;
-
 const SuiteHelper = require( './suite.helper' );
 
 /**
@@ -94,7 +92,7 @@ module.exports.collectSnappedDialogs = ( options, dialogs, dialogsScreenshotsDb 
     const nonSnappedCollection = {};
 
     dialogs.forEach( ( dialog, i ) => {
-        if ( !options.isForceSnap && self.isDialogSnapped( this.getDialogSizes( options.sizes, dialog ), dialog, dialogsScreenshotsDb[i] ) ) {
+        if ( !options.isForceSnap && this.isDialogSnapped( this.getDialogSizes( options.sizes, dialog ), dialog, dialogsScreenshotsDb[i] ) ) {
             if ( dialog.hash ) {
                 if ( !snappedCollection[dialog.url] ) {
                     snappedCollection[dialog.url] = [];

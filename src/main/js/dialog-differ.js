@@ -130,7 +130,7 @@
  * @memberOf DialogDiffer
  */
 
-process.setMaxListeners(0);
+process.setMaxListeners( 0 );
 
 const TAG = 'DialogDiffer';
 
@@ -181,7 +181,7 @@ class DialogDiffer {
         const differHandler = new DifferHandler( databaseHandler );
         const snapHandler = new SnapHandler( databaseHandler );
 
-        logger.level = suite.options.logLevel || LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+        logger.setLevel( suite.options.logLevel || LOGGER_CONSTANTS.NONE_LOG_LEVEL );
 
         return new Promise( ( fulfill, reject ) => {
             SuiteHelper.validateSuite( suite )
@@ -222,7 +222,7 @@ class DialogDiffer {
             /** @type {DialogDiffer.SuiteResult} */
             let suiteResult;
 
-            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
 
             databaseHandler
                 .initDB( null, database )
@@ -318,7 +318,7 @@ class DialogDiffer {
         return new Promise( ( fulfill, reject ) => {
             const databaseHandler = new DatabaseHandler();
 
-            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
 
             databaseHandler
                 .initDB( null, database )
@@ -337,7 +337,7 @@ class DialogDiffer {
         return new Promise( ( fulfill, reject ) => {
             const databaseHandler = new DatabaseHandler();
 
-            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
 
             databaseHandler
                 .initDB( null, database )
@@ -356,7 +356,7 @@ class DialogDiffer {
         return new Promise( ( fulfill, reject ) => {
             const databaseHandler = new DatabaseHandler();
 
-            logger.level = LOGGER_CONSTANTS.NONE_LOG_LEVEL;
+            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
 
             databaseHandler
                 .initDB( null, database )
