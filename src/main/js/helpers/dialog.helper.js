@@ -91,8 +91,10 @@ module.exports.collectSnappedDialogs = ( options, dialogs, dialogsScreenshotsDb 
     const snappedCollection = {};
     const nonSnappedCollection = {};
 
+    const self = this;
+
     dialogs.forEach( ( dialog, i ) => {
-        if ( !options.isForceSnap && this.isDialogSnapped( this.getDialogSizes( options.sizes, dialog ), dialog, dialogsScreenshotsDb[i] ) ) {
+        if ( !options.isForceSnap && self.isDialogSnapped( self.getDialogSizes( options.sizes, dialog ), dialog, dialogsScreenshotsDb[i] ) ) {
             if ( dialog.hash ) {
                 if ( !snappedCollection[dialog.url] ) {
                     snappedCollection[dialog.url] = [];
