@@ -1,5 +1,6 @@
 const path = require( 'path' );
 const chai = require( 'chai' );
+const puppeteer = require( 'puppeteer' );
 
 const expect = chai.expect;
 
@@ -16,6 +17,17 @@ const RESOURCES_FOLDER = path.resolve( __dirname, '../../resources' );
 
 function createDialogURL( dialog ) {
     return `file://${path.resolve( RESOURCES_FOLDER, dialog )}`;
+}
+
+async function getImageSize( base64 ) {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto( base64 );
+    const size = await page.$eval( 'img', img => ( { width: img.naturalWidth, height: img.naturalHeight } ) );
+
+    await page.close();
+    await browser.close();
+    return size;
 }
 
 describe( 'snap handler', () => {
@@ -319,6 +331,75 @@ describe( 'snap handler', () => {
                     expect( dialogs[0].error.message ).to.be.an( 'string' );
                 } );
         } ).timeout( 4000 );
+
+        it( 'should snap dialog with crop', async function () {
+            this.timeout( 4000 );
+
+            /** @type {DialogDiffer.Dialog} */
+            const dialog = {
+                version: '1',
+                id: '1',
+                url: createDialogURL( 'dialog-crop.html' ),
+                crop: '#crop',
+            };
+
+            /** @type {DialogDiffer.Options} */
+            const options = {
+                sizes: [{ width: 460, height: 350 }]
+            };
+
+            const dialogs = await snapHandler.snapSuiteDialogs( options, [dialog] );
+
+            expect( dialogs ).to.be.an( 'array' );
+            expect( dialogs ).to.have.lengthOf( 1 );
+
+            expect( dialogs[0].screenshots ).to.be.an( 'array' );
+            expect( dialogs[0].screenshots ).to.have.lengthOf( 1 );
+            expect( dialogs[0].screenshots[0].base64 ).not.to.equal( undefined );
+
+            const size = await getImageSize( dialogs[0].screenshots[0].base64 );
+            expect( size.width ).to.equal( 400 );
+            expect( size.height ).to.equal( 400 );
+        } );
+
+        it( 'should snap dialog with resize', async function () {
+            this.timeout( 4000 );
+
+            /** @type {DialogDiffer.Dialog} */
+            const dialog = {
+                version: '1',
+                id: '1',
+                url: createDialogURL( 'dialog-resize.html' ),
+                resize: function () {
+                    /*eslint-disable */
+                    var resizeElement = document.querySelector( '#resize' );
+
+                    return {
+                        height: resizeElement.clientHeight,
+                        width: resizeElement.clientWidth,
+                    }
+                    /*eslint-enable */
+                }
+            };
+
+            /** @type {DialogDiffer.Options} */
+            const options = {
+                sizes: [{ width: 460, height: 350 }]
+            };
+
+            const dialogs = await snapHandler.snapSuiteDialogs( options, [dialog] );
+
+            expect( dialogs ).to.be.an( 'array' );
+            expect( dialogs ).to.have.lengthOf( 1 );
+
+            expect( dialogs[0].screenshots ).to.be.an( 'array' );
+            expect( dialogs[0].screenshots ).to.have.lengthOf( 1 );
+            expect( dialogs[0].screenshots[0].base64 ).not.to.equal( undefined );
+
+            const size = await getImageSize( dialogs[0].screenshots[0].base64 );
+            expect( size.width, 'width' ).to.equal( 800 );
+            expect( size.height, 'height' ).to.equal( 800 );
+        } );
     } );
 
     describe( 'getSuiteResult', () => {
