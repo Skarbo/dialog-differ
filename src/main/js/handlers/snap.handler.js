@@ -132,10 +132,10 @@ class SnapHandler {
         logger.log( TAG, 'snapSuite', 'Snapping suite..', null, suite );
 
         try {
-            // snap current dialogs first
-            await this.snapSuiteDialogs( suite.options, suite.current, { onSnap } );
             // snap original dialogs
             await this.snapSuiteDialogs( suite.options, suite.original, { onSnap } );
+            // snap current dialogs
+            await this.snapSuiteDialogs( suite.options, suite.current, { onSnap } );
 
             logger.log( TAG, 'snapSuite', 'Snapped suite', null, suite.id );
             return suite;

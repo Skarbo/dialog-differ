@@ -1,5 +1,7 @@
 const SuiteHelper = require( './suite.helper' );
 
+'use strict';
+
 /**
  * @param width
  * @param height
@@ -39,8 +41,8 @@ module.exports.createUniqueDialogScreenshotId = ( dialog, dialogScreenshot ) => 
  */
 module.exports.createUniqueDialogResultId = ( options, dialogOriginal, dialogCurrent ) => {
     return [
-        this.createUniqueDialogId( dialogOriginal ),
-        this.createUniqueDialogId( dialogCurrent ),
+        module.exports.createUniqueDialogId( dialogOriginal ),
+        module.exports.createUniqueDialogId( dialogCurrent ),
         SuiteHelper.createUniqueOptionsId( options )
     ].join( '-' );
 };
@@ -91,10 +93,8 @@ module.exports.collectSnappedDialogs = ( options, dialogs, dialogsScreenshotsDb 
     const snappedCollection = {};
     const nonSnappedCollection = {};
 
-    const self = this;
-
     dialogs.forEach( ( dialog, i ) => {
-        if ( !options.isForceSnap && self.isDialogSnapped( self.getDialogSizes( options.sizes, dialog ), dialog, dialogsScreenshotsDb[i] ) ) {
+        if ( !options.isForceSnap && module.exports.isDialogSnapped( module.exports.getDialogSizes( options.sizes, dialog ), dialog, dialogsScreenshotsDb[i] ) ) {
             if ( dialog.hash ) {
                 if ( !snappedCollection[dialog.url] ) {
                     snappedCollection[dialog.url] = [];
