@@ -6,13 +6,16 @@
 class AbstractDatabaseLayer {
     /**
      * @abstract
+     * @param {*} [args]
+     * @return {Promise<void>}
      */
-    initDB() {
+    initDB( args ) {
         throw new Error( 'Must be implemented' );
     }
 
     /**
      * @abstract
+     * @return {Promise<void>}
      */
     clearDB() {
         throw new Error( 'Must be implemented' );
@@ -27,6 +30,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} dialogScreenshotId
      * @return {Promise<DialogDiffer.Database.DialogScreenshot|null>}
      */
@@ -35,6 +39,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @return {Promise<DialogDiffer.Database.DialogScreenshot>}
      */
     getDialogScreenshot( { dialogId, dialogVersion, dialogScreenshotHeight, dialogScreenshotWidth } ) {
@@ -42,6 +47,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} dialogId
      * @param {String} dialogVersion
      * @param {Array<{width: Number, height: Number}>} sizes
@@ -52,6 +58,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} dialogId
      * @param {String} dialogVersion
      * @param {Number} dialogScreenshotHeight
@@ -70,6 +77,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} dialogScreenshotId
      * @param {String} dialogScreenshotBase64
      * @return {Promise<DialogDiffer.Database.DialogScreenshot>}
@@ -82,6 +90,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} dialogVersion
      * @returns {Promise<Boolean>}
      */
@@ -90,6 +99,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} options
      * @param {String} dialogId
      * @param {String} originalVersion
@@ -101,19 +111,16 @@ class AbstractDatabaseLayer {
     }
 
     /**
-     * @param {String} dialogId
-     * @param {String} originalVersion
-     * @param {String} currentVersion
-     * @param {String} options
-     * @param {String} result
-     * @param {Array<DialogDiffer.DialogResultDiff>} differ
+     * @abstract
+     * @param {DialogDiffer.Database.DialogsResult} dialogsResult
      * @returns {Promise<DialogDiffer.Database.DialogsResult>}
      */
-    newDialogsResult( { dialogId, originalVersion, currentVersion, options, result, differ } ) {
+    newDialogsResult( dialogsResult ) {
         throw new Error( 'Must be implemented' );
     }
 
     /**
+     * @abstract
      * @param {String} suiteId
      * @return {Promise<DialogDiffer.Database.SuiteResult|null>}
      */
@@ -122,6 +129,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @return {Promise<Array<DialogDiffer.Database.SuiteResult>>}
      */
     getLastSuiteResults() {
@@ -129,6 +137,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {DialogDiffer.Database.SuiteResult} suiteResult
      * @return {Promise<DialogDiffer.Database.SuiteResult>}
      */
@@ -137,6 +146,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} suiteResultId
      * @param {DialogDiffer.Database.SuiteResult} suiteResult
      * @return {Promise<DialogDiffer.Database.SuiteResult>}
@@ -146,6 +156,7 @@ class AbstractDatabaseLayer {
     }
 
     /**
+     * @abstract
      * @param {String} suiteId
      * @returns {Promise<Boolean>}
      */

@@ -86,7 +86,7 @@ async function puppeteerScreenshot( page, dialog, size, databaseHandler ) {
 
     const takeScreenshot = async () => {
         if ( dialog.crop ) {
-            const clip = await page.evaluate( getElementClipEvaluate, dialog.crop )
+            const clip = await page.evaluate( getElementClipEvaluate, dialog.crop );
             return page.screenshot( { clip } );
         }
         else {
@@ -290,13 +290,23 @@ class SnapHandler {
             // create browser
             browser = await puppeteer.launch( {
                 timeout: config.browserTimeout,
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
             } );
 
             // create page
             page = await browser.newPage();
 
             page.on( 'error', msg => {
-                logger.warn( TAG, 'snapDialogFromBrowser', 'Error in dialog. Message: \'%s\'. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR, msg, dialog.version, dialog.id, dialog.url );
+                logger.warn(
+                    TAG,
+                    'snapDialogFromBrowser',
+                    'Error in dialog. Message: \'%s\'. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.',
+                    ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR,
+                    msg,
+                    dialog.version,
+                    dialog.id,
+                    dialog.url
+                );
             } );
 
             // go to dialog url
@@ -347,7 +357,16 @@ class SnapHandler {
             }
         }
         catch ( err ) {
-            const error = ErrorHelper.createError( err, 'Could not snap dialog from Browser. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR, dialog.version, dialog.id, dialog.url, { options } );
+            const error = ErrorHelper.createError(
+                err,
+                'Could not snap dialog from Browser. Version: \'%s\'. Id: \'%s\'. Url: \'%s%s\'.',
+                ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR,
+                dialog.version,
+                dialog.id,
+                dialog.url,
+                dialog.hash && `#${dialog.hash}` || '',
+                { options }
+            );
 
             dialog.error = {
                 code: error.code,
@@ -412,6 +431,7 @@ class SnapHandler {
             // launch browser
             browser = await puppeteer.launch( {
                 timeout: config.browserTimeout,
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
             } );
 
             await Promise.map( dialogs,
@@ -425,65 +445,74 @@ class SnapHandler {
                     // get sizes
                     const sizes = DialogHelper.getDialogSizes( options.sizes, dialog );
 
-                    // create page
-                    const page = await browser.newPage();
+                    let page;
+                    try {
+                        // create page
+                        page = await browser.newPage();
 
-                    // listen on error
-                    page.on( 'error', msg => {
-                        logger.warn( TAG, 'snapDialogsWithHashFromBrowser', 'Error in dialogs with hash. Message: \'%s\', Url: \'%s\'. Version: \'%s\'. First id: \'%s\'. Hash list: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, msg, dialogUrl, dialogVersion, dialogId, dialogHashList.join( ', ' ) );
-                    } );
-
-                    // go to dialog url
-                    await page.goto( dialogUrl, {
-                        timeout: config.browserTimeout,
-                    } );
-
-                    // stop CSS animations
-                    await page.evaluate( stopCSSAnimationsEvaluate );
-
-                    // redirect to hash
-                    await page.evaluate( redirectHashEvaluate, dialog.hash );
-
-                    // wait for selector
-                    if ( dialog.waitForSelector ) {
-                        await page.waitForSelector( dialog.waitForSelector, {
-                            timeout: config.browserTimeout
+                        // listen on error
+                        page.on( 'error', msg => {
+                            logger.warn( TAG, 'snapDialogsWithHashFromBrowser', 'Error in dialogs with hash. Message: \'%s\', Url: \'%s\'. Version: \'%s\'. First id: \'%s\'. Hash list: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, msg, dialogUrl, dialogVersion, dialogId, dialogHashList.join( ', ' ) );
                         } );
-                    }
 
-                    // for each size
-                    await Promise.each( sizes, async size => {
-                        // set viewport
-                        await page.setViewport( size );
+                        // go to dialog url
+                        await page.goto( dialogUrl, {
+                            timeout: config.browserTimeout,
+                        } );
 
-                        // wait for timeout
-                        await page.waitFor( dialog.timeout || 0 );
+                        // stop CSS animations
+                        await page.evaluate( stopCSSAnimationsEvaluate );
 
-                        // resize
-                        if ( dialog.resize ) {
-                            // resize
-                            let newSize = await page.evaluate( dialog.resize, size.width, size.height );
+                        // redirect to hash
+                        await page.evaluate( redirectHashEvaluate, dialog.hash );
 
-                            // set new viewport
-                            await page.setViewport( newSize );
-
-                            // resize once more in case of responsive changes
-                            newSize = await page.evaluate( dialog.resize, newSize.width, newSize.height );
-
-                            // set new viewport
-                            await page.setViewport( newSize );
+                        // wait for selector
+                        if ( dialog.waitForSelector ) {
+                            await page.waitForSelector( dialog.waitForSelector, {
+                                timeout: config.browserTimeout
+                            } );
                         }
 
-                        // take screenshot
-                        await puppeteerScreenshot( page, dialog, size, this.databaseHandler )
-                    } );
+                        // for each size
+                        await Promise.each( sizes, async size => {
+                            // set viewport
+                            await page.setViewport( size );
 
-                    // close page
-                    await page.close();
+                            // wait for timeout
+                            await page.waitFor( dialog.timeout || 0 );
 
-                    // callback
-                    if ( onSnap ) {
-                        onSnap( dialog );
+                            // resize
+                            if ( dialog.resize ) {
+                                // resize
+                                let newSize = await page.evaluate( dialog.resize, size.width, size.height );
+
+                                // set new viewport
+                                await page.setViewport( newSize );
+
+                                // resize once more in case of responsive changes
+                                newSize = await page.evaluate( dialog.resize, newSize.width, newSize.height );
+
+                                // set new viewport
+                                await page.setViewport( newSize );
+                            }
+
+                            // take screenshot
+                            await puppeteerScreenshot( page, dialog, size, this.databaseHandler )
+                        } );
+
+                        // close page
+                        await page.close();
+
+                        // callback
+                        if ( onSnap ) {
+                            onSnap( dialog );
+                        }
+                    }
+                    catch ( err ) {
+                        if ( page ) {
+                            page.close();
+                        }
+                        throw err;
                     }
                 },
                 { concurrency: 10 }

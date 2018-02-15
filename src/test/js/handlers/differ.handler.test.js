@@ -37,18 +37,17 @@ describe( 'differ handler', () => {
 
     describe( 'differDialogScreenshot', () => {
         it( 'should have same screenshots', () => {
-            return differHandler.differDialogScreenshot(
-                {
+            return differHandler
+                .differDialogScreenshot( {
                     path: path.resolve( RESOURCES_FOLDER, 'dialog-one.png' )
-                },
-                {
+                }, {
                     path: path.resolve( RESOURCES_FOLDER, 'dialog-one.png' )
-                }
-            ).then( result => {
-                expect( result ).to.be.an( 'object' );
-                expect( result.isIdentical ).to.equal( true );
-                expect( result.base64 ).to.equal( null )
-            } );
+                } )
+                .then( result => {
+                    expect( result ).to.be.an( 'object' );
+                    expect( result.isIdentical ).to.equal( true );
+                    expect( result.base64 ).to.equal( null )
+                } );
         } );
 
         it( 'should differ screenshots', () => {
@@ -275,7 +274,7 @@ describe( 'differ handler', () => {
                     expect( suiteResult.stats.changed ).to.equal( 0 );
                     expect( suiteResult.stats.added ).to.equal( 0 );
                     expect( suiteResult.stats.deleted ).to.equal( 0 );
-                    expect( suiteResult.stats.duration ).to.be.greaterThan( 0 );
+                    expect( suiteResult.stats.duration ).to.be.a( 'number' );
                 } );
         } );
     } );

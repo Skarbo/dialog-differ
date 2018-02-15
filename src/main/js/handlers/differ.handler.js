@@ -14,30 +14,41 @@ const SuiteHelper = require( '../helpers/suite.helper' );
 const DialogHelper = require( '../helpers/dialog.helper' );
 const logger = require( '../logger' );
 
+/**
+ * @typedef {Object} DifferHandler.DifferDialogScreenshotResult
+ * @property {Boolean} isIdentical
+ * @property {String|null} base64
+ * @memberOf DifferHandler
+ */
+
+/**
+ * @class
+ */
 class DifferHandler {
+    /**
+     * @param {DatabaseHandler} databaseHandler
+     */
     constructor( databaseHandler ) {
         this.databaseHandler = databaseHandler;
     }
 
     /**
      * @param {DialogDiffer.Dialog} dialog
-     * @returns {Promise<Dialog>}
+     * @returns {DialogDiffer.Dialog}
      * @private
      */
     prepareDialogScreenshots( dialog ) {
-        return new Promise( ( fulfill ) => {
-            dialog.screenshots.forEach( screenshot => {
-                const tmpFile = tmp.fileSync( {
-                    postfix: '.png'
-                } );
-
-                screenshot.path = tmpFile.name;
-                screenshot.removeCallback = tmpFile.removeCallback;
-                base64Img.imgSync( screenshot.base64, path.dirname( tmpFile.name ), path.basename( tmpFile.name, '.png' ) );
+        dialog.screenshots.forEach( screenshot => {
+            const tmpFile = tmp.fileSync( {
+                postfix: '.png'
             } );
 
-            fulfill( dialog );
+            screenshot.path = tmpFile.name;
+            screenshot.removeCallback = tmpFile.removeCallback;
+            base64Img.imgSync( screenshot.base64, path.dirname( tmpFile.name ), path.basename( tmpFile.name, '.png' ) );
         } );
+
+        return dialog;
     }
 
     /**
@@ -63,7 +74,7 @@ class DifferHandler {
     /**
      * @param {DialogDiffer.DialogScreenshot} screenshotOriginal
      * @param {DialogDiffer.DialogScreenshot} screenshotCurrent
-     * @returns {Promise<{isIdentical: Boolean, base64: String|null}>}
+     * @returns {Promise<DifferHandler.DifferDialogScreenshotResult>}
      */
     differDialogScreenshot( screenshotOriginal, screenshotCurrent ) {
         return new Promise( ( fulfill, reject ) => {
@@ -109,51 +120,63 @@ class DifferHandler {
      * @param {DialogDiffer.Dialog|null} dialogOriginal
      * @param {DialogDiffer.Dialog|null} dialogCurrent
      * @returns {Promise<DialogDiffer.DialogsResult>}
+     * @throws {DialogDiffer.Error}
      */
-    differDialog( options, dialogOriginal, dialogCurrent ) {
+    async differDialog( options, dialogOriginal, dialogCurrent ) {
+        // dialog deleted or added
         if ( !dialogOriginal || !dialogCurrent ) {
-            return Promise.resolve( this.createDialogsResult(
+            return this.createDialogsResult(
                 dialogOriginal,
                 dialogCurrent,
                 !dialogCurrent ? DIFFER_CONSTANTS.DELETED_DIFFER_RESULT : DIFFER_CONSTANTS.ADDED_DIFFER_RESULT,
                 []
-            ) );
+            );
         }
 
+        // dialog error
         if ( dialogOriginal.error || dialogCurrent.error ) {
-            return Promise.resolve( this.createDialogsResult(
+            return this.createDialogsResult(
                 dialogOriginal,
                 dialogCurrent,
                 DIFFER_CONSTANTS.ERROR_DIFFER_RESULT,
                 []
-            ) );
+            );
         }
 
-        return new Promise( ( fulfill, reject ) => {
-            this.databaseHandler
-                .getDialogsResult( options, dialogOriginal.id, dialogOriginal.version, dialogCurrent.version )
-                .then( dialogResultDb => {
-                    // use dialog result from database
-                    if ( dialogResultDb && !options.isForceDiff ) {
-                        logger.info( TAG, 'differDialog', 'Using dialogs \'%s\' and \'%s\' diff result from database', LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogId( dialogOriginal ), DialogHelper.createUniqueDialogId( dialogCurrent ) );
+        // get dialog result from database
+        const dialogResultDb = await this.databaseHandler.getDialogsResult( options, dialogOriginal.id, dialogOriginal.version, dialogCurrent.version )
 
-                        return Promise.resolve( this.createDialogsResult(
-                            dialogOriginal,
-                            dialogCurrent,
-                            dialogResultDb.result,
-                            dialogResultDb.differ
-                        ) );
-                    }
-                    // get dialog result from image diff
-                    else {
-                        logger.info( TAG, 'differDialog', 'Getting dialogs \'%s\' and \'%s\' diff result from image diff', LOGGER_CONSTANTS.DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER, DialogHelper.createUniqueDialogId( dialogOriginal ), DialogHelper.createUniqueDialogId( dialogCurrent ) );
+        // use dialog result from database
+        if ( dialogResultDb && !options.isForceDiff ) {
+            logger.info(
+                TAG,
+                'differDialog',
+                'Using dialogs \'%s\' and \'%s\' diff result from database',
+                LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER,
+                DialogHelper.createUniqueDialogId( dialogOriginal ),
+                DialogHelper.createUniqueDialogId( dialogCurrent )
+            );
 
-                        return this.differDialogWithImageDiff( options, dialogOriginal, dialogCurrent );
-                    }
-                } )
-                .then( fulfill )
-                .catch( reject );
-        } );
+            return this.createDialogsResult(
+                dialogOriginal,
+                dialogCurrent,
+                dialogResultDb.result,
+                dialogResultDb.differ
+            );
+        }
+        // get dialog result from image diff
+        else {
+            logger.info(
+                TAG,
+                'differDialog',
+                'Getting dialogs \'%s\' and \'%s\' diff result from image diff',
+                LOGGER_CONSTANTS.DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER,
+                DialogHelper.createUniqueDialogId( dialogOriginal ),
+                DialogHelper.createUniqueDialogId( dialogCurrent )
+            );
+
+            return this.differDialogWithImageDiff( options, dialogOriginal, dialogCurrent );
+        }
     }
 
     /**
@@ -161,50 +184,46 @@ class DifferHandler {
      * @param {DialogDiffer.Dialog|null} dialogOriginal
      * @param {DialogDiffer.Dialog|null} dialogCurrent
      * @returns {Promise<DialogDiffer.DialogsResult>}
+     * @throws {DialogDiffer.Error}
      * @private
      */
-    differDialogWithImageDiff( options, dialogOriginal, dialogCurrent ) {
-        return new Promise( ( fulfill, reject ) => {
-            Promise
-                .all( [
-                    this.prepareDialogScreenshots( dialogOriginal ),
-                    this.prepareDialogScreenshots( dialogCurrent )
-                ] )
-                .then( ( [dialogOriginal, dialogCurrent] ) => {
-                    return Promise
-                        .map(
-                            dialogOriginal.screenshots,
-                            ( screenshot, i ) => this.differDialogScreenshot( dialogOriginal.screenshots[i], dialogCurrent.screenshots[i] ),
-                            { concurrency: 10 }
-                        );
-                } )
-                .then( result => {
-                    /** @type {DialogDiffer.DialogsResult} */
-                    const dialogsResult = this.createDialogsResult(
-                        dialogOriginal,
-                        dialogCurrent,
-                        DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT,
-                        []
-                    );
+    async differDialogWithImageDiff( options, dialogOriginal, dialogCurrent ) {
+        // prepare dialogs screenshots
+        this.prepareDialogScreenshots( dialogOriginal );
+        this.prepareDialogScreenshots( dialogCurrent );
 
-                    result.forEach( ( { isIdentical, base64 }, i ) => {
-                        if ( !isIdentical ) {
-                            dialogsResult.result = DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT;
-                        }
+        // diff dialogs
+        /** @type {Array<DifferHandler.DifferDialogScreenshotResult>} */
+        const dialogsDiffers = await Promise.map(
+            dialogOriginal.screenshots,
+            ( screenshot, i ) => this.differDialogScreenshot( dialogOriginal.screenshots[i], dialogCurrent.screenshots[i] ),
+            { concurrency: 10 }
+        );
 
-                        dialogsResult.differ.push( {
-                            index: i,
-                            result: isIdentical ? DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT : DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT,
-                            base64
-                        } );
-                    } );
+        /** @type {DialogDiffer.DialogsResult} */
+        const dialogsResult = this.createDialogsResult(
+            dialogOriginal,
+            dialogCurrent,
+            DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT,
+            []
+        );
 
-                    return Promise.resolve( dialogsResult );
-                } )
-                .then( dialogsResult => this.databaseHandler.saveDialogsResult( options, dialogOriginal, dialogCurrent, dialogsResult ) )
-                .then( ( { dialogsResult } ) => fulfill( dialogsResult ) )
-                .catch( reject )
+        dialogsDiffers.forEach( ( { isIdentical, base64 }, i ) => {
+            if ( !isIdentical ) {
+                dialogsResult.result = DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT;
+            }
+
+            dialogsResult.differ.push( {
+                index: i,
+                result: isIdentical ? DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT : DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT,
+                base64
+            } );
         } );
+
+        // save dialogs result to database
+        await this.databaseHandler.saveDialogsResult( options, dialogOriginal, dialogCurrent, dialogsResult );
+
+        return dialogsResult
     }
 
     /**
@@ -212,132 +231,117 @@ class DifferHandler {
      * @param {DialogDiffer.OnEndCallback} [onEnd]
      * @returns {Promise<DialogDiffer.SuiteResult>}
      */
-    differSuite( suite, { onEnd = null } = {} ) {
-        return new Promise( ( fulfill, reject ) => {
-            /** @type {DialogDiffer.SuiteResult} */
-            let suiteResult;
-            logger.log( TAG, 'differSuite', 'Differ suite...' );
+    async differSuite( suite, { onEnd = null } = {} ) {
+        logger.log( TAG, 'differSuite', 'Differ suite...', null, suite.id );
 
-            this.databaseHandler
-                .getSuiteResult( suite.id )
-                .then( suiteResultDb => {
-                    suiteResult = SuiteHelper.prepareSuiteResults( suite, suiteResultDb );
+        // get suite result from database
+        const suiteResultDb = await this.databaseHandler.getSuiteResult( suite.id );
 
-                    return Promise.map(
-                        suiteResult.results,
-                        result => this.differDialog( suite.options, result.original, result.current ),
-                        { concurrency: 10 }
-                    );
-                } )
-                .then( results => {
-                    logger.log( TAG, 'differSuite', 'Diffed suite' );
+        // prepare suite result
+        const suiteResult = SuiteHelper.prepareSuiteResults( suite, suiteResultDb );
 
-                    results.forEach( ( dialogResult, i ) => {
-                        suiteResult.results[i] = dialogResult;
-                    } );
+        // differ dialogs
+        /** @type {Array<DialogDiffer.DialogsResult>} */
+        const dialogsResults = await Promise.map(
+            suiteResult.results,
+            result => this.differDialog( suite.options, result.original, result.current ),
+            { concurrency: 10 }
+        );
 
-                    return Promise.resolve( suiteResult );
-                } )
-                .then( () => this.finishSuiteResult( suiteResult, { onEnd } ) )
-                .then( fulfill )
-                .catch( reject );
+        logger.log( TAG, 'differSuite', 'Diffed suite', null, suite.id );
+
+        dialogsResults.forEach( ( dialogResult, i ) => {
+            suiteResult.results[i] = dialogResult;
         } );
+
+        // finish suite result
+        return this.finishSuiteResult( suiteResult, { onEnd } );
     }
 
     /**
      * @param {DialogDiffer.Suite} suite
      * @param {DialogDiffer.OnStartCallback} [onStart]
-     * @return {Promise<DialogDiffer.Suite, DialogDiffer.Error>}
+     * @return {Promise<DialogDiffer.Suite>}
+     * @throws {DialogDiffer.Error}
      */
-    initSuiteResult( suite, { onStart = null } = {} ) {
-        const suiteResultPromise = () => {
-            if ( suite.id ) {
-                return this.databaseHandler.getSuiteResult( suite.id );
-            }
-            else {
-                return this.databaseHandler.newSuiteResult( suite );
-            }
-        };
+    async initSuiteResult( suite, { onStart = null } = {} ) {
+        // get suite result from database or create new suite result in database
+        const suiteResultDb = suite.id ? await this.databaseHandler.getSuiteResult( suite.id ) : await this.databaseHandler.newSuiteResult( suite );
 
-        return new Promise( ( fulfill, reject ) => {
-            suiteResultPromise()
-                .then( suiteResultDb => {
-                    // inject Suite id
-                    suite.id = suiteResultDb.id;
+        // inject Suite id
+        suite.id = suiteResultDb.id;
 
-                    if ( onStart ) {
-                        onStart( suiteResultDb );
-                    }
+        if ( onStart ) {
+            onStart( suiteResultDb );
+        }
 
-                    fulfill( suite );
-                } )
-                .catch( reject );
-        } );
+        return suite;
     }
 
     /**
      * @param {DialogDiffer.SuiteResult} suiteResult
      * @param {DialogDiffer.OnEndCallback} [onEnd]
-     * @return {Promise<DialogDiffer.SuiteResult, DialogDiffer.Error>}
+     * @return {Promise<DialogDiffer.SuiteResult>}
+     * @throws {DialogDiffer.Error}
      */
-    finishSuiteResult( suiteResult, { onEnd = null } = {} ) {
-        return new Promise( ( fulfill, reject ) => {
-            // duration
-            suiteResult.stats.duration = Date.now() - suiteResult.timestamp;
+    async finishSuiteResult( suiteResult, { onEnd = null } = {} ) {
+        // duration
+        suiteResult.stats.duration = Date.now() - suiteResult.timestamp;
 
-            // status
-            suiteResult.status = SUITE_CONSTANTS.FINISHED_STATUS;
+        // status
+        suiteResult.status = SUITE_CONSTANTS.FINISHED_STATUS;
 
-            // dialog results
-            Object
-                .keys( suiteResult.results )
-                .forEach( dialogId => {
-                    /** @type {DialogDiffer.DialogsResult} */
-                    const dialogsResult = suiteResult.results[dialogId];
+        // dialog results
+        Object
+            .keys( suiteResult.results )
+            .forEach( dialogId => {
+                /** @type {DialogDiffer.DialogsResult} */
+                const dialogsResult = suiteResult.results[dialogId];
 
-                    switch ( dialogsResult.result ) {
-                        case DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT:
-                            suiteResult.stats.identical++;
-                            break;
-                        case DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT:
-                            suiteResult.stats.changed++;
-                            break;
-                        case DIFFER_CONSTANTS.ADDED_DIFFER_RESULT:
-                            suiteResult.stats.added++;
-                            break;
-                        case DIFFER_CONSTANTS.DELETED_DIFFER_RESULT:
-                            suiteResult.stats.deleted++;
-                            break;
-                        case DIFFER_CONSTANTS.ERROR_DIFFER_RESULT:
-                            suiteResult.stats.error++;
-                            break;
-                    }
-                } );
+                switch ( dialogsResult.result ) {
+                    case DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT:
+                        suiteResult.stats.identical++;
+                        break;
+                    case DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT:
+                        suiteResult.stats.changed++;
+                        break;
+                    case DIFFER_CONSTANTS.ADDED_DIFFER_RESULT:
+                        suiteResult.stats.added++;
+                        break;
+                    case DIFFER_CONSTANTS.DELETED_DIFFER_RESULT:
+                        suiteResult.stats.deleted++;
+                        break;
+                    case DIFFER_CONSTANTS.ERROR_DIFFER_RESULT:
+                        suiteResult.stats.error++;
+                        break;
+                }
+            } );
 
-            this.databaseHandler.saveSuiteResult( suiteResult )
-                .then( suiteResult => this.databaseHandler.getSuiteResult( suiteResult.id ) )
-                .then( suiteResultDb => ( onEnd ? onEnd( suiteResultDb ) : null ) )
-                .then( () => fulfill( suiteResult ) )
-                .catch( reject );
-        } );
+        // save suite result to database
+        await this.databaseHandler.saveSuiteResult( suiteResult );
+
+        // get suite result from database
+        const suiteResultDb = await this.databaseHandler.getSuiteResult( suiteResult.id );
+
+        if ( onEnd ) {
+            onEnd( suiteResultDb )
+        }
+
+        return suiteResult;
     }
 
     /**
      * @param {DialogDiffer.Suite} suite
      * @param {DialogDiffer.Error} err
-     * @return {Promise<DialogDiffer.Suite, DialogDiffer.Error>}
+     * @return {Promise<DialogDiffer.Suite>}
+     * @throws {DialogDiffer.Error}
      */
-    errorSuiteResult( suite, err ) {
-        return new Promise( ( fulfill, reject ) => {
-            if ( this.databaseHandler.isInitialized() ) {
-                this.databaseHandler.saveSuiteResultError( suite, err )
-                    .then( () => fulfill( suite ) )
-                    .catch( reject );
-            }
-            else {
-                fulfill( suite );
-            }
-        } );
+    async errorSuiteResult( suite, err ) {
+        if ( this.databaseHandler.isInitialized() ) {
+            await this.databaseHandler.saveSuiteResultError( suite, err )
+        }
+
+        return suite;
     }
 
 }

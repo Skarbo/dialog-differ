@@ -18,6 +18,7 @@
     "lodash-id": "^0.14.0",
     "lowdb": "^0.16.2",
     "puppeteer": "^1.0.0",
+    "string-format-js": "^1.0.0",
     "tmp": "0.0.31"
   },
   "devDependencies": {

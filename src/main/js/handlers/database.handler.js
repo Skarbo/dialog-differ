@@ -1,3 +1,4 @@
+require( 'string-format-js' );
 const LowDbDatabaseLayer = require( '../layers/lowdb-database.layer' );
 
 const ERROR_CONSTANTS = require( '../constants/error-constants' );
@@ -39,6 +40,8 @@ const ErrorHelper = require( '../helpers/error.helper' );
  * @property {{version: String, id: String, url: String, hash: String, options: DialogDiffer.Options}} current
  * @property {String} result
  * @property {Array<DialogDiffer.DialogResultDiff>} differ
+ * @property {{code: String, message: String}|null} originalError
+ * @property {{code: String, message: String}|null} currentError
  * @memberOf DialogDiffer.Database
  */
 
@@ -48,6 +51,7 @@ const ErrorHelper = require( '../helpers/error.helper' );
  * @property {String} originalVersion
  * @property {String} currentVersion
  * @property {String} result
+ * @property {{code: String, message: String}|null} error
  * @memberOf DialogDiffer.Database
  */
 
@@ -63,40 +67,38 @@ const ErrorHelper = require( '../helpers/error.helper' );
  * @memberOf DialogDiffer.Database
  */
 
-/** @type {AbstractDatabaseLayer} */
-let databaseLayer = null;
-
 /**
  * @class
  */
 class DatabaseHandler {
     /**
-     * @param {AbstractDatabaseLayer} [databaseLayer_]
-     * @param {*} [args]
+     * @param {AbstractDatabaseLayer} [databaseLayer] Uses {@link LowDbDatabaseLayer} as default
      */
-    initDB( databaseLayer_, args = null ) {
-        // use default database layer
-        if ( !databaseLayer_ ) {
-            databaseLayer_ = new LowDbDatabaseLayer()
-        }
-
-        databaseLayer = databaseLayer_;
-
-        return databaseLayer.initDB( args )
+    constructor( databaseLayer = null ) {
+        /** @type {AbstractDatabaseLayer} */
+        this.databaseLayer = databaseLayer || new LowDbDatabaseLayer();
     }
 
+    /**
+     * @param {*} [args]
+     * @return {Promise<void>}
+     */
+    initDB( args = null ) {
+        return this.databaseLayer.initDB( args )
+    }
+
+    /**
+     * @return {Promise<void>}
+     */
     clearDB() {
-        if ( databaseLayer ) {
-            return databaseLayer.clearDB();
-        }
-        return Promise.resolve();
+        return this.databaseLayer ? this.databaseLayer.clearDB() : Promise.resolve();
     }
 
     /**
      * @return {Boolean}
      */
     isInitialized() {
-        return databaseLayer ? databaseLayer.isInitialized() : false;
+        return this.databaseLayer ? this.databaseLayer.isInitialized() : false;
     }
 
     /**
@@ -110,14 +112,14 @@ class DatabaseHandler {
                 .getDialogScreenshot( dialog, dialogScreenshot )
                 .then( dialogScreenshotDb => {
                     if ( dialogScreenshotDb ) {
-                        return databaseLayer
+                        return this.databaseLayer
                             .updateDialogScreenshot( {
                                 dialogScreenshotId: dialogScreenshotDb.id,
                                 dialogScreenshotBase64: dialogScreenshot.base64
                             } )
                     }
                     else {
-                        return databaseLayer
+                        return this.databaseLayer
                             .newDialogScreenshot( {
                                 dialogId: dialog.id,
                                 dialogVersion: dialog.version,
@@ -141,7 +143,7 @@ class DatabaseHandler {
      */
     getDialogScreenshot( dialog, dialogScreenshot ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .getDialogScreenshot( {
                     dialogId: dialog.id,
                     dialogVersion: dialog.version,
@@ -162,7 +164,7 @@ class DatabaseHandler {
      */
     getDialogScreenshots( dialog, sizes ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .getDialogScreenshots( {
                     dialogId: dialog.id,
                     dialogVersion: dialog.version,
@@ -195,7 +197,7 @@ class DatabaseHandler {
      */
     deleteDialogsScreenshots( dialogVersion ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .deleteDialogsScreenshots( dialogVersion )
                 .then( resolve )
                 .catch( err => {
@@ -213,7 +215,7 @@ class DatabaseHandler {
      */
     saveDialogsResult( options, dialogOriginal, dialogCurrent, dialogsResult ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .newDialogsResult( {
                     dialogId: dialogsResult.dialogId,
                     originalVersion: dialogsResult.originalVersion,
@@ -240,7 +242,7 @@ class DatabaseHandler {
      */
     getDialogsResult( options, dialogId, originalVersion, currentVersion ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .getDialogsResult( {
                     dialogId: dialogId,
                     originalVersion: originalVersion,
@@ -260,7 +262,7 @@ class DatabaseHandler {
      */
     newSuiteResult( suite ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .newSuiteResult( {
                     status: SUITE_CONSTANTS.RUNNING_STATUS,
                     errorCode: null,
@@ -273,7 +275,7 @@ class DatabaseHandler {
                         deleted: 0,
                         duration: 0,
                         error: 0,
-                        dialogs: Math.max( (suite.original || []).length, (suite.current || []).length ),
+                        dialogs: Math.max( ( suite.original || [] ).length, ( suite.current || [] ).length ),
                     },
                     dialogsResult: []
                 } )
@@ -289,8 +291,19 @@ class DatabaseHandler {
      * @return {Promise<DialogDiffer.SuiteResult>}
      */
     saveSuiteResult( suiteResult ) {
+        /** @param {DialogDiffer.Dialog|null} dialog */
+        const createErrorObj = ( dialog ) => {
+            if ( !dialog || !dialog.error ) {
+                return null;
+            }
+            return {
+                code: dialog.error.code,
+                message: ( dialog.error.message || '' ).format.apply( dialog.error.message || '', dialog.error.args ),
+            }
+        };
+
         return new Promise( ( fulfill, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .updateSuiteResult( suiteResult.id, {
                     status: suiteResult.status,
                     stats: suiteResult.stats,
@@ -306,6 +319,7 @@ class DatabaseHandler {
                                     url: dialogsResult.original.url,
                                     hash: dialogsResult.original.hash,
                                     options: dialogsResult.original.options || {},
+                                    error: createErrorObj( dialogsResult.original ),
                                 } : null,
                                 current: dialogsResult.current ? {
                                     version: dialogsResult.currentVersion,
@@ -313,6 +327,7 @@ class DatabaseHandler {
                                     url: dialogsResult.current.url,
                                     hash: dialogsResult.current.hash,
                                     options: dialogsResult.current.options || {},
+                                    error: createErrorObj( dialogsResult.current ),
                                 } : null,
                                 result: dialogsResult.result,
                             };
@@ -332,7 +347,7 @@ class DatabaseHandler {
      */
     saveSuiteResultError( suite, err ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .updateSuiteResult( suite.id, {
                     status: SUITE_CONSTANTS.ERROR_STATUS,
                     errorCode: err.code,
@@ -346,11 +361,11 @@ class DatabaseHandler {
 
     /**
      * @param {String} suiteId
-     * @return {Promise<DialogDiffer.Database.SuiteResult|null>}
+     * @return {Promise<DialogDiffer.Database.SuiteResult@|null>}
      */
     getSuiteResult( suiteId ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .getSuiteResult( suiteId )
                 .then( resolve )
                 .catch( err => {
@@ -364,7 +379,7 @@ class DatabaseHandler {
      */
     getLastSuiteResults() {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .getLastSuiteResults()
                 .then( resolve )
                 .catch( err => {
@@ -375,11 +390,12 @@ class DatabaseHandler {
 
     /**
      * @param {String} suiteId
-     * @returns {Promise<Boolean, DialogDiffer.Error>}
+     * @returns {Promise<Boolean>}
+     * @throws {DialogDiffer.Error}
      */
     deleteSuiteResult( suiteId ) {
         return new Promise( ( resolve, reject ) => {
-            databaseLayer
+            this.databaseLayer
                 .deleteSuiteResult( suiteId )
                 .then( resolve )
                 .catch( err => {

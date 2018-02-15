@@ -240,27 +240,15 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
     }
 
     /**
-     * @param {String} dialogId
-     * @param {String} originalVersion
-     * @param {String} currentVersion
-     * @param {String} options
-     * @param {String} result
-     * @param {Array<DialogDiffer.DialogResultDiff>} differ
+     * @param {DialogDiffer.Database.DialogsResult} dialogsResult
      * @returns {Promise<DialogDiffer.Database.DialogsResult>}
      */
-    newDialogsResult( { dialogId, originalVersion, currentVersion, options, result, differ } ) {
+    newDialogsResult( dialogsResult ) {
         return new Promise( ( fulfill, reject ) => {
             try {
                 const dialogsResultDb = db
                     .get( DIALOG_DIFFS_RESULT_DB )
-                    .insert( {
-                        dialogId: dialogId,
-                        originalVersion: originalVersion,
-                        currentVersion: currentVersion,
-                        options: options,
-                        result: result,
-                        differ: differ,
-                    } )
+                    .insert( dialogsResult )
                     .write();
 
                 fulfill( dialogsResultDb );

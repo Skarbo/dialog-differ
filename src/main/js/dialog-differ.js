@@ -44,7 +44,7 @@
  * @property {String} [waitForSelector]
  * @property {String} [crop]
  * @property {Number} [timeout]
- * @property {{code: String, message: String, args: Object, stack: Object}} [error] Injected
+ * @property {{code: String, message: String, args: [Object], stack: [Object]}} [error] Injected
  * @property {Array<DialogDiffer.DialogScreenshot>} [screenshots] Injected
  * @property {DialogDiffer.DialogOptions} [options]
  * @memberOf DialogDiffer
@@ -130,7 +130,7 @@
  * @memberOf DialogDiffer
  */
 
-process.setMaxListeners( 0 );
+process.setMaxListeners( 0 ); // needed for puppeteer
 
 const TAG = 'DialogDiffer';
 
@@ -152,6 +152,29 @@ const DialogHelper = require( './helpers/dialog.helper' );
  * @class
  */
 class DialogDiffer {
+    /**
+     * @param {AbstractDatabaseLayer|String} [database]
+     * @param {DatabaseHandler} [databaseHandler]
+     * @param {DifferHandler} [differHandler]
+     * @param {SnapHandler} [snapHandler]
+     * @param {String} [logLevel]
+     */
+    constructor( {
+        databaseLayer = null,
+        databaseHandler = null,
+        differHandler = null,
+        snapHandler = null,
+        logLevel = LOGGER_CONSTANTS.ERROR_LOG_LEVEL
+    } = {} ) {
+        logger.setLevel( logLevel );
+        /** @type {DatabaseHandler} */
+        this.databaseHandler = databaseHandler || new DatabaseHandler( databaseLayer );
+        /** @type {DifferHandler} */
+        this.differHandler = differHandler || new DifferHandler( this.databaseHandler );
+        /** @type {SnapHandler} */
+        this.snapHandler = snapHandler || new SnapHandler( this.databaseHandler );
+    }
+
     static get ERROR_CONSTANTS() {
         return ERROR_CONSTANTS;
     }
@@ -169,201 +192,166 @@ class DialogDiffer {
     }
 
     /**
+     * @param {*} [databaseArgs]
+     * @return {Promise<void>}
+     * @throws {DialogDiffer.Error}
+     */
+    async initDialogDiffer( { databaseArgs = null } = {} ) {
+        return this.databaseHandler.initDB( databaseArgs );
+    }
+
+    /**
      * @param {DialogDiffer.Suite} suite
      * @param {DialogDiffer.OnStartCallback} [onStart]
      * @param {DialogDiffer.OnSnapCallback} [onSnap]
      * @param {DialogDiffer.OnDiffCallback} [onDiff]
      * @param {DialogDiffer.OnEndCallback} [onEnd]
-     * @return {Promise<DialogDiffer.SuiteResult, DialogDiffer.Error>}
+     * @return {Promise<DialogDiffer.SuiteResult>}
+     * @throws {DialogDiffer.Error}
      */
-    static diff( suite, { onStart = null, onSnap = null, onDiff = null, onEnd = null } = {} ) {
-        const databaseHandler = new DatabaseHandler();
-        const differHandler = new DifferHandler( databaseHandler );
-        const snapHandler = new SnapHandler( databaseHandler );
+    async diff( suite, { onStart = null, onSnap = null, onDiff = null, onEnd = null } = {} ) {
+        try {
+            // validate Suite
+            await SuiteHelper.validateSuite( suite );
 
-        logger.setLevel( suite.options.logLevel || LOGGER_CONSTANTS.NONE_LOG_LEVEL );
+            // init Suite result
+            await this.differHandler.initSuiteResult( suite, { onStart } );
 
-        return new Promise( ( fulfill, reject ) => {
-            SuiteHelper.validateSuite( suite )
-                .then( () => databaseHandler.initDB( null, suite.options.database ) )
-                .then( () => differHandler.initSuiteResult( suite, { onStart } ) )
-                .then( () => snapHandler.snapSuite( suite, { onSnap } ) )
-                .then( () => differHandler.differSuite( suite, { onDiff, onEnd } ) )
-                .then( fulfill )
-                .catch( err => {
-                    logger.error( TAG, 'diff', err.toString(), JSON.stringify( err.args ), err.stack );
+            // snap Suite
+            await this.snapHandler.snapSuite( suite, { onSnap } );
 
-                    differHandler
-                        .errorSuiteResult( suite, err )
-                        .then( () => databaseHandler.getSuiteResult( suite.id ) )
-                        .then( suiteResultDb => {
-                            if ( onEnd ) {
-                                onEnd( suiteResultDb );
-                            }
+            // differ Suite
+            return await this.differHandler.differSuite( suite, { onDiff, onEnd } );
+        }
+        catch ( err ) {
+            logger.error( TAG, 'diff', err.toString(), JSON.stringify( err.args ), err.stack );
 
-                            reject( ErrorHelper.createError( err, 'Unexpected error', ERROR_CONSTANTS.UNEXPECTED_ERROR ) );
-                        } )
-                        .catch( () => {
-                            reject( ErrorHelper.createError( err, 'Unexpected error', ERROR_CONSTANTS.UNEXPECTED_ERROR ) );
-                        } )
-                } );
-        } );
+            try {
+                await this.differHandler.errorSuiteResult( suite, err );
+                const suiteResultDb = await this.databaseHandler.getSuiteResult( suite.id );
+
+                if ( onEnd ) {
+                    onEnd( suiteResultDb );
+                }
+            }
+            catch ( err ) {
+                // ignore
+            }
+
+            throw ErrorHelper.createError( err, 'Unexpected error', ERROR_CONSTANTS.UNEXPECTED_ERROR );
+        }
     }
 
     /**
      * @param {String} suiteId
-     * @param {String} [database]
      * @return {Promise<DialogDiffer.SuiteResult>}
+     * @throws {DialogDiffer.Error}
      */
-    static getSuiteResult( suiteId, database ) {
-        return new Promise( ( fulfill, reject ) => {
-            const databaseHandler = new DatabaseHandler();
+    async getSuiteResult( suiteId ) {
+        try {
+            // get suite result from database
+            const suiteResultDb = await this.databaseHandler.getSuiteResult( suiteId );
+
+            // suite result must be finished
+            if ( !suiteResultDb || suiteResultDb.status !== SUITE_CONSTANTS.FINISHED_STATUS ) {
+                throw ErrorHelper.createError( null, 'Suite does not exist or is not finished', null, { suiteResultDb } );
+            }
 
             /** @type {DialogDiffer.SuiteResult} */
-            let suiteResult;
+            const suiteResult = { ...suiteResultDb };
 
-            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
+            // get dialogs screenshots
+            /** @type {Array<Array<DialogDiffer.Database.DialogScreenshot>>} */
+            const dialogsScreenshotsMapDb = await Promise.all( suiteResultDb.results.map( suiteResultDialogsResultDb => {
+                return this.databaseHandler
+                    .getDialogsScreenshots( [
+                        { id: suiteResultDialogsResultDb.dialogId, version: suiteResultDialogsResultDb.originalVersion },
+                        { id: suiteResultDialogsResultDb.dialogId, version: suiteResultDialogsResultDb.currentVersion },
+                    ], DialogHelper.getDialogSizes( suiteResultDb.options.sizes, suiteResultDialogsResultDb.original || suiteResultDialogsResultDb.current ) );
+            } ) );
 
-            databaseHandler
-                .initDB( null, database )
-                .then( () => {
-                    return databaseHandler.getSuiteResult( suiteId );
-                } )
-                .then( suiteResultDb => {
-                    if ( !suiteResultDb || suiteResultDb.status !== SUITE_CONSTANTS.FINISHED_STATUS ) {
-                        throw ErrorHelper.createError( null, 'Suite does not exist or is not finished', null, { suiteResultDb } );
-                    }
+            dialogsScreenshotsMapDb.forEach( ( dialogsScreenshotsDb, i ) => {
+                // set original dialog, if result is not added
+                if ( suiteResult.results[i].original && suiteResult.results[i].result !== DIFFER_CONSTANTS.ADDED_DIFFER_RESULT ) {
+                    suiteResult.results[i].original.screenshots = dialogsScreenshotsDb[0];
+                }
+                else {
+                    suiteResult.results[i].original = null;
+                }
 
-                    suiteResult = suiteResultDb;
+                // set current dialog, if result is not deleted
+                if ( suiteResult.results[i].current && suiteResult.results[i].result !== DIFFER_CONSTANTS.DELETED_DIFFER_RESULT ) {
+                    suiteResult.results[i].current.screenshots = dialogsScreenshotsDb[1];
+                }
+                else {
+                    suiteResult.results[i].current = null;
+                }
 
-                    return Promise.all( suiteResultDb.results.map( suiteResultDialogsResultDb => {
-                        return new Promise( ( fulfill, reject ) => {
-                            databaseHandler
-                                .getDialogsScreenshots( [
-                                    { id: suiteResultDialogsResultDb.dialogId, version: suiteResultDialogsResultDb.originalVersion },
-                                    { id: suiteResultDialogsResultDb.dialogId, version: suiteResultDialogsResultDb.currentVersion },
-                                ], DialogHelper.getDialogSizes( suiteResultDb.options.sizes, suiteResultDialogsResultDb.original || suiteResultDialogsResultDb.current ) )
-                                .then( fulfill )
-                                .catch( reject );
-                        } );
-                    } ) );
-                } )
-                .then(
-                    /** @type {Array<Array<DialogDiffer.Database.DialogScreenshot>>} */
-                    ( results ) => {
-                        results.forEach( ( dialogsScreenshotsDb, i ) => {
-                            // set original dialog, if result is not added
-                            if ( suiteResult.results[i].original && suiteResult.results[i].result !== DIFFER_CONSTANTS.ADDED_DIFFER_RESULT ) {
-                                suiteResult.results[i].original.screenshots = dialogsScreenshotsDb[0];
-                            }
-                            else {
-                                suiteResult.results[i].original = null;
-                            }
+                // set default differ results
+                suiteResult.results[i].differ = DialogHelper
+                    .getDialogSizes( suiteResult.options.sizes, suiteResult.results[i].original || suiteResult.results[i].current )
+                    .map( ( _, i ) => {
+                        return {
+                            index: i,
+                            result: DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT,
+                            base64: null,
+                        };
+                    } );
+            } );
 
-                            // set current dialog, if result is not deleted
-                            if ( suiteResult.results[i].current && suiteResult.results[i].result !== DIFFER_CONSTANTS.DELETED_DIFFER_RESULT ) {
-                                suiteResult.results[i].current.screenshots = dialogsScreenshotsDb[1];
-                            }
-                            else {
-                                suiteResult.results[i].current = null;
-                            }
+            /** @type {Array<DialogDiffer.Database.DialogsResult>} */
+            const dialogsResultsDb = await Promise.all( suiteResult.results.map( suiteResultDialogsResultDb => {
+                return this.databaseHandler.getDialogsResult(
+                    suiteResult.options,
+                    suiteResultDialogsResultDb.dialogId,
+                    suiteResultDialogsResultDb.originalVersion,
+                    suiteResultDialogsResultDb.currentVersion
+                );
+            } ) );
 
-                            // set default differ results
-                            suiteResult.results[i].differ = DialogHelper
-                                .getDialogSizes( suiteResult.options.sizes, suiteResult.results[i].original || suiteResult.results[i].current )
-                                .map( ( _, i ) => {
-                                    return {
-                                        index: i,
-                                        result: DIFFER_CONSTANTS.IDENTICAL_DIFFER_RESULT,
-                                        base64: null,
-                                    };
-                                } );
-                        } );
+            dialogsResultsDb.forEach( ( dialogsResultDb, i ) => {
+                if ( dialogsResultDb ) {
+                    suiteResult.results[i].differ = dialogsResultDb.differ;
+                }
+                else {
+                    // set differ to result
+                    suiteResult.results[i].differ.forEach( diffResult => {
+                        diffResult.result = suiteResult.results[i].result;
+                    } );
+                }
+            } );
 
-                        return Promise.all( suiteResult.results.map( suiteResultDialogsResultDb => {
-                            return new Promise( ( fulfill, reject ) => {
-                                databaseHandler
-                                    .getDialogsResult( suiteResult.options, suiteResultDialogsResultDb.dialogId, suiteResultDialogsResultDb.originalVersion, suiteResultDialogsResultDb.currentVersion )
-                                    .then( fulfill )
-                                    .catch( reject );
-                            } );
-                        } ) );
-                    } )
-                .then(
-                    /** @type {Array<DialogDiffer.Database.DialogsResult>} */
-                    ( results ) => {
-                        results.forEach( ( dialogsResultDb, i ) => {
-                            if ( dialogsResultDb ) {
-                                suiteResult.results[i].differ = dialogsResultDb.differ;
-                            }
-                            else {
-                                // set differ to result
-                                suiteResult.results[i].differ.forEach( diffResult => {
-                                    diffResult.result = suiteResult.results[i].result;
-                                } );
-                            }
-                        } );
-
-                        return Promise.resolve( suiteResult );
-                    } )
-                .then( suiteResult => fulfill( suiteResult ) )
-                .catch( err => reject( ErrorHelper.createError( err, 'Could not get Suite', ERROR_CONSTANTS.GET_SUITE_ERROR, { suiteId } ) ) )
-        } );
+            return suiteResult;
+        }
+        catch ( err ) {
+            throw ErrorHelper.createError( err, 'Could not get Suite', ERROR_CONSTANTS.GET_SUITE_ERROR, { suiteId } )
+        }
     }
 
     /**
-     * @return {Promise<Array<DialogDiffer.Database.SuiteResult>, DialogDiffer.Error>}
+     * @return {Promise<Array<DialogDiffer.Database.SuiteResult>>}
+     * @throws {DialogDiffer.Error}
      */
-    static getLastSuiteResults( database ) {
-        return new Promise( ( fulfill, reject ) => {
-            const databaseHandler = new DatabaseHandler();
-
-            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
-
-            databaseHandler
-                .initDB( null, database )
-                .then( () => databaseHandler.getLastSuiteResults() )
-                .then( fulfill )
-                .catch( reject );
-        } );
+    async getLastSuiteResults() {
+        return this.databaseHandler.getLastSuiteResults();
     }
 
     /**
      * @param {String} dialogVersion
-     * @param {String} [database]
-     * @returns {Promise}
+     * @returns {Promise<Boolean>}
+     * @throws {DialogDiffer.Error}
      */
-    static deleteDialogs( dialogVersion, database ) {
-        return new Promise( ( fulfill, reject ) => {
-            const databaseHandler = new DatabaseHandler();
-
-            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
-
-            databaseHandler
-                .initDB( null, database )
-                .then( () => databaseHandler.deleteDialogsScreenshots( dialogVersion ) )
-                .then( fulfill )
-                .catch( reject );
-        } );
+    async deleteDialogs( dialogVersion ) {
+        return this.databaseHandler.deleteDialogsScreenshots( dialogVersion )
     }
 
     /**
      * @param {String} suiteId
-     * @param {String} [database]
-     * @returns {Promise}
+     * @returns {Promise<Boolean>}
+     * @throws {DialogDiffer.Error}
      */
-    static deleteSuiteResult( suiteId, database ) {
-        return new Promise( ( fulfill, reject ) => {
-            const databaseHandler = new DatabaseHandler();
-
-            logger.setLevel( LOGGER_CONSTANTS.NONE_LOG_LEVEL );
-
-            databaseHandler
-                .initDB( null, database )
-                .then( () => databaseHandler.deleteSuiteResult( suiteId ) )
-                .then( fulfill )
-                .catch( reject );
-        } );
+    async deleteSuiteResult( suiteId ) {
+        return this.databaseHandler.deleteSuiteResult( suiteId );
     }
 }
 

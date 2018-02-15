@@ -10,7 +10,7 @@ const config = require( '../../../config.json' );
 
 const DialogDiffer = require( '../../main/js/dialog-differ' );
 const logger = require( '../../main/js/logger' );
-const DatabaseHandler = require( '../../main/js/handlers/database.handler' );
+const ERROR_CONSTANTS = require( '../../main/js/constants/error-constants' );
 
 const RESOURCES_FOLDER = path.resolve( __dirname, '../resources' );
 
@@ -19,18 +19,19 @@ function createDialogURL( dialog ) {
 }
 
 describe( 'DialogDiffer', () => {
-    let databaseHandler = new DatabaseHandler();
+    const dialogDiffer = new DialogDiffer( { logLevel: DialogDiffer.LOGGER_CONSTANTS.DEBUG_LOG_LEVEL } );
 
-    beforeEach( () => {
+    beforeEach( async () => {
         config.browserTimeout = 1000;
         logger.clear();
-        return databaseHandler
-            .clearDB()
-            .then( () => databaseHandler.initDB() );
+        await dialogDiffer.databaseHandler.clearDB();
+        await dialogDiffer.initDialogDiffer();
     } );
 
     describe( 'diff', () => {
-        it( 'should diff', () => {
+        it( 'should diff', async function () {
+            this.timeout( 10000 );
+
             /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
@@ -54,31 +55,111 @@ describe( 'DialogDiffer', () => {
                 ],
             };
 
-            return DialogDiffer
-                .diff( suite )
-                .then( suiteResult => {
-                    expect( suiteResult ).to.be.an( 'object' );
-                    expect( suiteResult.id ).to.be.a( 'string' );
-                    expect( suiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
-                    expect( suiteResult.results ).to.have.lengthOf( 1 );
+            const suiteResult = await dialogDiffer.diff( suite );
 
-                    expect( suiteResult.results[0].dialogId ).to.equal( suite.original[0].id );
-                    expect( suiteResult.results[0].dialogId ).to.equal( suite.current[0].id );
-                    expect( suiteResult.results[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+            expect( suiteResult ).to.be.an( 'object' );
+            expect( suiteResult.id ).to.be.a( 'string' );
+            expect( suiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
+            expect( suiteResult.results ).to.have.lengthOf( 1 );
 
-                    expect( suiteResult.results[0].original ).to.be.an( 'object' );
-                    expect( suiteResult.results[0].original.screenshots ).to.be.an( 'array' );
-                    expect( suiteResult.results[0].original.screenshots ).to.have.lengthOf( 2 );
+            expect( suiteResult.results[0].dialogId ).to.equal( suite.original[0].id );
+            expect( suiteResult.results[0].dialogId ).to.equal( suite.current[0].id );
+            expect( suiteResult.results[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
 
-                    expect( suiteResult.results[0].differ ).to.have.lengthOf( 2 );
-                    expect( suiteResult.results[0].differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
-                    expect( suiteResult.results[0].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
-                } );
-        } ).timeout( 4000 );
+            expect( suiteResult.results[0].original ).to.be.an( 'object' );
+            expect( suiteResult.results[0].original.screenshots ).to.be.an( 'array' );
+            expect( suiteResult.results[0].original.screenshots ).to.have.lengthOf( 2 );
+
+            expect( suiteResult.results[0].differ ).to.have.lengthOf( 2 );
+            expect( suiteResult.results[0].differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+            expect( suiteResult.results[0].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+        } );
+
+        it( 'should diff valid dialogs and not error dialogs', async function () {
+            this.timeout( 10000 );
+
+            /** @type {DialogDiffer.Suite} */
+            const suite = {
+                options: {
+                    originalVersion: 1,
+                    currentVersion: 2,
+                    sizes: [{ width: 460, height: 350 }],
+                },
+                original: [
+                    {
+                        version: 1,
+                        id: 1,
+                        url: createDialogURL( 'dialog-one.html' ),
+                    },
+                    {
+                        version: 1,
+                        id: 2,
+                        url: createDialogURL( 'dialog-hash.html' ),
+                        hash: 'First',
+                    }
+                ],
+                current: [
+                    {
+                        version: 2,
+                        id: 1,
+                        url: createDialogURL( 'dialog-two.html' ),
+                        waitForSelector: 'will-timeout',
+                    },
+                    {
+                        version: 2,
+                        id: 2,
+                        url: createDialogURL( 'dialog-hash.html' ),
+                        hash: 'Second',
+                    }
+                ],
+            };
+
+            const suiteResult = await dialogDiffer.diff( suite );
+
+            expect( suiteResult ).to.be.an( 'object' );
+            expect( suiteResult.id ).to.be.a( 'string' );
+            expect( suiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
+            expect( suiteResult.results ).to.have.lengthOf( 2 );
+            expect( suiteResult.stats ).to.be.an( 'object' );
+            expect( suiteResult.stats.changed ).to.equal( 1 );
+            expect( suiteResult.stats.error ).to.equal( 1 );
+
+            expect( suiteResult.results[0].dialogId ).to.equal( suite.original[0].id );
+            expect( suiteResult.results[0].dialogId ).to.equal( suite.current[0].id );
+            expect( suiteResult.results[0].result ).to.equal( DIFFER_CONSTANTS.ERROR_DIFFER_RESULT );
+
+            expect( suiteResult.results[0].original ).to.be.an( 'object' );
+            expect( suiteResult.results[0].original.screenshots ).to.be.an( 'array' );
+            expect( suiteResult.results[0].original.screenshots ).to.have.lengthOf( 1 );
+
+            expect( suiteResult.results[0].current ).to.be.an( 'object' );
+            expect( suiteResult.results[0].current.screenshots ).to.be.an( 'array' );
+            expect( suiteResult.results[0].current.screenshots ).to.have.lengthOf( 0 );
+            expect( suiteResult.results[0].current.error ).to.be.an( 'object' );
+            expect( suiteResult.results[0].current.error.code ).to.equal( ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR );
+
+            expect( suiteResult.results[0].differ ).to.have.lengthOf( 0 );
+
+            expect( suiteResult.results[1].dialogId ).to.equal( suite.original[1].id );
+            expect( suiteResult.results[1].dialogId ).to.equal( suite.current[1].id );
+            expect( suiteResult.results[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+
+            expect( suiteResult.results[1].original ).to.be.an( 'object' );
+            expect( suiteResult.results[1].original.screenshots ).to.be.an( 'array' );
+            expect( suiteResult.results[1].original.screenshots ).to.have.lengthOf( 1 );
+
+            expect( suiteResult.results[1].current ).to.be.an( 'object' );
+            expect( suiteResult.results[1].current.screenshots ).to.be.an( 'array' );
+            expect( suiteResult.results[1].current.screenshots ).to.have.lengthOf( 1 );
+
+            expect( suiteResult.results[1].differ ).to.have.lengthOf( 1 );
+        } );
     } );
 
     describe( 'getSuiteResult', () => {
-        it( 'should get suite result', () => {
+        it( 'should get suite result', async function () {
+            this.timeout( 4000 );
+
             /** @type {DialogDiffer.Suite} */
             const suite = {
                 options: {
@@ -122,74 +203,159 @@ describe( 'DialogDiffer', () => {
                 ],
             };
 
-            return DialogDiffer
-                .diff( suite )
-                .then( suiteResult => {
-                    expect( suiteResult ).to.be.an( 'object' );
-                    expect( suiteResult.id ).to.be.a( 'string' );
-                    expect( suiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
+            const suiteResult = await dialogDiffer.diff( suite );
 
-                    return DialogDiffer.getSuiteResult( suiteResult.id );
-                } )
-                .then( suiteResult => {
-                    expect( suiteResult ).to.be.an( 'object' );
-                    expect( suiteResult.id ).to.equal( suite.id );
-                    expect( suiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
-                    expect( suiteResult.results ).to.have.lengthOf( 3 );
+            expect( suiteResult ).to.be.an( 'object' );
+            expect( suiteResult.id ).to.be.a( 'string' );
+            expect( suiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
 
-                    expect( suiteResult.results[0].dialogId ).to.equal( suite.original[0].id );
-                    expect( suiteResult.results[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+            const retrievedSuiteResult = await dialogDiffer.getSuiteResult( suiteResult.id );
 
-                    expect( suiteResult.results[0].original ).to.be.an( 'object' );
-                    expect( suiteResult.results[0].original.version ).to.equal( suite.original[0].version );
-                    expect( suiteResult.results[0].original.id ).to.equal( suite.original[0].id );
-                    expect( suiteResult.results[0].original.url ).to.equal( suite.original[0].url );
-                    expect( suiteResult.results[0].original.options ).to.equal( suite.original[0].options );
-                    expect( suiteResult.results[0].original.screenshots ).to.be.an( 'array' );
-                    expect( suiteResult.results[0].original.screenshots ).to.have.lengthOf( 2 );
+            expect( retrievedSuiteResult ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.id ).to.equal( suite.id );
+            expect( retrievedSuiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
+            expect( retrievedSuiteResult.results ).to.have.lengthOf( 3 );
 
-                    expect( suiteResult.results[0].current ).to.be.an( 'object' );
-                    expect( suiteResult.results[0].current.version ).to.equal( suite.current[0].version );
-                    expect( suiteResult.results[0].current.id ).to.equal( suite.current[0].id );
-                    expect( suiteResult.results[0].current.url ).to.equal( suite.current[0].url );
-                    expect( suiteResult.results[0].current.options ).to.equal( suite.current[0].options );
-                    expect( suiteResult.results[0].current.screenshots ).to.be.an( 'array' );
-                    expect( suiteResult.results[0].current.screenshots ).to.have.lengthOf( 2 );
+            expect( retrievedSuiteResult.results[0].dialogId ).to.equal( suite.original[0].id );
+            expect( retrievedSuiteResult.results[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
 
-                    expect( suiteResult.results[0].differ ).to.have.lengthOf( 2 );
-                    expect( suiteResult.results[0].differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
-                    expect( suiteResult.results[0].differ[0].base64 ).to.be.an( 'string' );
-                    expect( suiteResult.results[0].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
-                    expect( suiteResult.results[0].differ[1].base64 ).to.be.an( 'string' );
+            expect( retrievedSuiteResult.results[0].original ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[0].original.version ).to.equal( suite.original[0].version );
+            expect( retrievedSuiteResult.results[0].original.id ).to.equal( suite.original[0].id );
+            expect( retrievedSuiteResult.results[0].original.url ).to.equal( suite.original[0].url );
+            expect( retrievedSuiteResult.results[0].original.options ).to.equal( suite.original[0].options );
+            expect( retrievedSuiteResult.results[0].original.screenshots ).to.be.an( 'array' );
+            expect( retrievedSuiteResult.results[0].original.screenshots ).to.have.lengthOf( 2 );
 
-                    expect( suiteResult.results[1].dialogId ).to.equal( suite.original[1].id );
-                    expect( suiteResult.results[1].originalVersion ).to.equal( suite.original[1].version );
-                    expect( suiteResult.results[1].currentVersion ).to.equal( null );
-                    expect( suiteResult.results[1].result ).to.equal( DIFFER_CONSTANTS.DELETED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[0].current ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[0].current.version ).to.equal( suite.current[0].version );
+            expect( retrievedSuiteResult.results[0].current.id ).to.equal( suite.current[0].id );
+            expect( retrievedSuiteResult.results[0].current.url ).to.equal( suite.current[0].url );
+            expect( retrievedSuiteResult.results[0].current.options ).to.equal( suite.current[0].options );
+            expect( retrievedSuiteResult.results[0].current.screenshots ).to.be.an( 'array' );
+            expect( retrievedSuiteResult.results[0].current.screenshots ).to.have.lengthOf( 2 );
 
-                    expect( suiteResult.results[1].original ).to.be.an( 'object' );
-                    expect( suiteResult.results[1].current ).to.equal( null );
+            expect( retrievedSuiteResult.results[0].differ ).to.have.lengthOf( 2 );
+            expect( retrievedSuiteResult.results[0].differ[0].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[0].differ[0].base64 ).to.be.an( 'string' );
+            expect( retrievedSuiteResult.results[0].differ[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[0].differ[1].base64 ).to.be.an( 'string' );
 
-                    expect( suiteResult.results[1].differ ).to.have.lengthOf( 2 );
-                    expect( suiteResult.results[1].differ[0].result ).to.equal( DIFFER_CONSTANTS.DELETED_DIFFER_RESULT );
-                    expect( suiteResult.results[1].differ[0].base64 ).to.equal( null );
-                    expect( suiteResult.results[1].differ[1].result ).to.equal( DIFFER_CONSTANTS.DELETED_DIFFER_RESULT );
-                    expect( suiteResult.results[1].differ[1].base64 ).to.equal( null );
+            expect( retrievedSuiteResult.results[1].dialogId ).to.equal( suite.original[1].id );
+            expect( retrievedSuiteResult.results[1].originalVersion ).to.equal( suite.original[1].version );
+            expect( retrievedSuiteResult.results[1].currentVersion ).to.equal( null );
+            expect( retrievedSuiteResult.results[1].result ).to.equal( DIFFER_CONSTANTS.DELETED_DIFFER_RESULT );
 
-                    expect( suiteResult.results[2].dialogId ).to.equal( suite.current[1].id );
-                    expect( suiteResult.results[2].originalVersion ).to.equal( null );
-                    expect( suiteResult.results[2].currentVersion ).to.equal( suite.current[1].version );
-                    expect( suiteResult.results[2].result ).to.equal( DIFFER_CONSTANTS.ADDED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[1].original ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[1].current ).to.equal( null );
 
-                    expect( suiteResult.results[2].original ).to.equal( null );
-                    expect( suiteResult.results[2].current ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[1].differ ).to.have.lengthOf( 2 );
+            expect( retrievedSuiteResult.results[1].differ[0].result ).to.equal( DIFFER_CONSTANTS.DELETED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[1].differ[0].base64 ).to.equal( null );
+            expect( retrievedSuiteResult.results[1].differ[1].result ).to.equal( DIFFER_CONSTANTS.DELETED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[1].differ[1].base64 ).to.equal( null );
 
-                    expect( suiteResult.results[2].differ ).to.have.lengthOf( 2 );
-                    expect( suiteResult.results[2].differ[0].result ).to.equal( DIFFER_CONSTANTS.ADDED_DIFFER_RESULT );
-                    expect( suiteResult.results[2].differ[0].base64 ).to.equal( null );
-                    expect( suiteResult.results[2].differ[1].result ).to.equal( DIFFER_CONSTANTS.ADDED_DIFFER_RESULT );
-                    expect( suiteResult.results[2].differ[1].base64 ).to.equal( null );
-                } );
-        } ).timeout( 4000 );
+            expect( retrievedSuiteResult.results[2].dialogId ).to.equal( suite.current[1].id );
+            expect( retrievedSuiteResult.results[2].originalVersion ).to.equal( null );
+            expect( retrievedSuiteResult.results[2].currentVersion ).to.equal( suite.current[1].version );
+            expect( retrievedSuiteResult.results[2].result ).to.equal( DIFFER_CONSTANTS.ADDED_DIFFER_RESULT );
+
+            expect( retrievedSuiteResult.results[2].original ).to.equal( null );
+            expect( retrievedSuiteResult.results[2].current ).to.be.an( 'object' );
+
+            expect( retrievedSuiteResult.results[2].differ ).to.have.lengthOf( 2 );
+            expect( retrievedSuiteResult.results[2].differ[0].result ).to.equal( DIFFER_CONSTANTS.ADDED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[2].differ[0].base64 ).to.equal( null );
+            expect( retrievedSuiteResult.results[2].differ[1].result ).to.equal( DIFFER_CONSTANTS.ADDED_DIFFER_RESULT );
+            expect( retrievedSuiteResult.results[2].differ[1].base64 ).to.equal( null );
+        } );
+
+        it( 'should get suite result with one error', async function () {
+            this.timeout( 4000 );
+
+            /** @type {DialogDiffer.Suite} */
+            const suite = {
+                options: {
+                    originalVersion: 1,
+                    currentVersion: 2,
+                    sizes: [{ width: 460, height: 350 }],
+                },
+                original: [
+                    {
+                        version: 1,
+                        id: 1,
+                        url: createDialogURL( 'dialog-one.html' ),
+                    },
+                    {
+                        version: 1,
+                        id: 2,
+                        url: createDialogURL( 'dialog-hash.html' ),
+                        hash: 'First',
+                    }
+                ],
+                current: [
+                    {
+                        version: 2,
+                        id: 1,
+                        url: createDialogURL( 'dialog-two.html' ),
+                        waitForSelector: 'will-timeout',
+                    },
+                    {
+                        version: 2,
+                        id: 2,
+                        url: createDialogURL( 'dialog-hash.html' ),
+                        hash: 'Second',
+                    }
+                ],
+            };
+
+            const suiteResult = await dialogDiffer.diff( suite );
+
+            expect( suiteResult ).to.be.an( 'object' );
+            expect( suiteResult.id ).to.be.a( 'string' );
+            expect( suiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
+
+            const retrievedSuiteResult = await dialogDiffer.getSuiteResult( suiteResult.id );
+
+            expect( retrievedSuiteResult ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.id ).to.be.a( 'string' );
+            expect( retrievedSuiteResult.status ).to.equal( SUITE_CONSTANTS.FINISHED_STATUS );
+            expect( retrievedSuiteResult.results ).to.have.lengthOf( 2 );
+            expect( retrievedSuiteResult.stats ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.stats.changed ).to.equal( 1 );
+            expect( retrievedSuiteResult.stats.error ).to.equal( 1 );
+
+            expect( retrievedSuiteResult.results[0].dialogId ).to.equal( suite.original[0].id );
+            expect( retrievedSuiteResult.results[0].dialogId ).to.equal( suite.current[0].id );
+            expect( retrievedSuiteResult.results[0].result ).to.equal( DIFFER_CONSTANTS.ERROR_DIFFER_RESULT );
+
+            expect( retrievedSuiteResult.results[0].original ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[0].original.screenshots ).to.be.an( 'array' );
+            expect( retrievedSuiteResult.results[0].original.screenshots ).to.have.lengthOf( 1 );
+            expect( retrievedSuiteResult.results[0].original.error ).to.equal( null );
+
+            expect( retrievedSuiteResult.results[0].current ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[0].current.screenshots ).to.be.an( 'array' );
+            expect( retrievedSuiteResult.results[0].current.screenshots ).to.have.lengthOf( 0 );
+            expect( retrievedSuiteResult.results[0].current.error ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[0].current.error.code ).to.equal( ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR );
+            expect( retrievedSuiteResult.results[0].current.error.message ).to.match( /Could not snap dialog from Browser/ );
+
+            expect( retrievedSuiteResult.results[0].differ ).to.have.lengthOf( 1 );
+
+            expect( retrievedSuiteResult.results[1].dialogId ).to.equal( suite.original[1].id );
+            expect( retrievedSuiteResult.results[1].dialogId ).to.equal( suite.current[1].id );
+            expect( retrievedSuiteResult.results[1].result ).to.equal( DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT );
+
+            expect( retrievedSuiteResult.results[1].original ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[1].original.screenshots ).to.be.an( 'array' );
+            expect( retrievedSuiteResult.results[1].original.screenshots ).to.have.lengthOf( 1 );
+
+            expect( retrievedSuiteResult.results[1].current ).to.be.an( 'object' );
+            expect( retrievedSuiteResult.results[1].current.screenshots ).to.be.an( 'array' );
+            expect( retrievedSuiteResult.results[1].current.screenshots ).to.have.lengthOf( 1 );
+
+            expect( retrievedSuiteResult.results[1].differ ).to.have.lengthOf( 1 );
+        } );
     } );
 } );
