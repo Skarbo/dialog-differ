@@ -512,7 +512,24 @@ class SnapHandler {
                         if ( page ) {
                             page.close();
                         }
-                        throw err;
+
+                        const error = ErrorHelper.createError(
+                            err,
+                            'Could not snap dialog with hash from Browser. Url: \'%s%s\'. Version: \'%s\'. Dialog id: \'%s\'.',
+                            ERROR_CONSTANTS.SNAP_DIALOG_WITH_HASH_FROM_BROWSER_ERROR,
+                            dialogUrl, dialog.hash ? `#${dialog.hash}` : '',
+                            dialogVersion,
+                            dialogId
+                        );
+
+                        dialog.error = {
+                            code: error.code,
+                            message: error.message,
+                            args: error.args,
+                            stack: error.stack,
+                        };
+
+                        logger.error( TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, ...error.args, error.stack );
                     }
                 },
                 { concurrency: 10 }
