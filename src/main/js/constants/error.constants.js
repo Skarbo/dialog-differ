@@ -1,5 +1,3 @@
-'use strict';
-
 module.exports = {
   UNEXPECTED_ERROR: 'unexpected-error',
 
@@ -34,5 +32,5 @@ module.exports = {
 
   SUITE_OPTIONS_ERROR: 'suite-options',
   SUITE_ORIGINAL_DIALOG_ERROR: 'suite-original-dialog',
-  SUITE_CURRENT_DIALOG_ERROR: 'suite-current-dialog'
-};
+  SUITE_CURRENT_DIALOG_ERROR: 'suite-current-dialog',
+}

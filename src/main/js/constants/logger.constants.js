@@ -1,5 +1,3 @@
-'use strict';
-
 module.exports = {
   DEBUG_LOG_LEVEL: 'debug',
   INFO_LOG_LEVEL: 'info',
@@ -11,5 +9,5 @@ module.exports = {
   SCREENSHOTS_FROM_DATABASE_LOGGER: 'screenshots-from-database',
 
   DIALOG_DIFF_FROM_DATABASE_LOGGER: 'dialog-diff-from-database',
-  DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER: 'dialog-diff-from-image-diff'
-};
+  DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER: 'dialog-diff-from-image-diff',
+}
