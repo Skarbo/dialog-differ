@@ -1,6 +1,6 @@
 {
   "name": "dialog-differ",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "Dialog differ",
   "main": "index.js",
   "scripts": {

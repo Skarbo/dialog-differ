@@ -15,20 +15,17 @@ const DIFFER_CONSTANTS = require('../../../main/js/constants/differ.constants')
 const SUITE_CONSTANTS = require('../../../main/js/constants/suite.constants')
 const LOGGER_CONSTANTS = require('../../../main/js/constants/logger.constants')
 
-const config = require('../../../../config.json')
-
 function createDialogURL (dialog) {
   return `file://${path.resolve(RESOURCES_FOLDER, dialog)}`
 }
 
 describe('differ handler', () => {
   const databaseHandler = new DatabaseHandler()
-  const snapHandler = new SnapHandler(databaseHandler)
+  const snapHandler = new SnapHandler(databaseHandler, {browserTimeout: 1000})
   const differHandler = new DifferHandler(databaseHandler)
 
   beforeEach(() => {
     logger.clear()
-    config.browserTimeout = 1000
 
     return databaseHandler
       .clearDB()

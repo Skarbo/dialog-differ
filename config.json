@@ -1,3 +1,4 @@
 {
-  "browserTimeout": 10000
+  "browserTimeout": 5000,
+  "logLevel": "error"
 }

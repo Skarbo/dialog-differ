@@ -7,8 +7,6 @@ const expect = chai.expect
 const LOGGER_CONSTANTS = require('../../../main/js/constants/logger.constants')
 const ERROR_CONSTANTS = require('../../../main/js/constants/error.constants')
 
-const config = require('../../../../config.json')
-
 const SnapHandler = require('../../../main/js/handlers/snap.handler')
 const logger = require('../../../main/js/logger')
 const DatabaseHandler = require('../../../main/js/handlers/database.handler')
@@ -32,10 +30,9 @@ async function getImageSize (base64) {
 
 describe('snap handler', () => {
   const databaseHandler = new DatabaseHandler()
-  const snapHandler = new SnapHandler(databaseHandler)
+  const snapHandler = new SnapHandler(databaseHandler, {browserTimeout: 1000})
 
   beforeEach(() => {
-    config.browserTimeout = 1000
     logger.clear()
 
     return databaseHandler

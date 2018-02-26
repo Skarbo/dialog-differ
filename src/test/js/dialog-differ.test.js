@@ -6,8 +6,6 @@ const expect = chai.expect
 const DIFFER_CONSTANTS = require('../../main/js/constants/differ.constants')
 const SUITE_CONSTANTS = require('../../main/js/constants/suite.constants')
 
-const config = require('../../../config.json')
-
 const DialogDiffer = require('../../main/js/dialog-differ')
 const logger = require('../../main/js/logger')
 const ERROR_CONSTANTS = require('../../main/js/constants/error.constants')
@@ -19,10 +17,14 @@ function createDialogURL (dialog) {
 }
 
 describe('DialogDiffer', () => {
-  const dialogDiffer = new DialogDiffer({logLevel: DialogDiffer.LOGGER_CONSTANTS.DEBUG_LOG_LEVEL})
+  const dialogDiffer = new DialogDiffer({
+    config: {
+      logLevel: DialogDiffer.LOGGER_CONSTANTS.DEBUG_LOG_LEVEL,
+      browserTimeout: 1000
+    }
+  })
 
   beforeEach(async () => {
-    config.browserTimeout = 1000
     logger.clear()
     await dialogDiffer.databaseHandler.clearDB()
     await dialogDiffer.initDialogDiffer()
@@ -30,8 +32,6 @@ describe('DialogDiffer', () => {
 
   describe('diff', () => {
     it('should diff', async function () {
-      this.timeout(10000)
-
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {
@@ -76,8 +76,6 @@ describe('DialogDiffer', () => {
     })
 
     it('should diff valid dialogs and not error dialogs', async function () {
-      this.timeout(10000)
-
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {
@@ -158,8 +156,6 @@ describe('DialogDiffer', () => {
 
   describe('getSuiteResult', () => {
     it('should get suite result', async function () {
-      this.timeout(4000)
-
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {
@@ -271,8 +267,6 @@ describe('DialogDiffer', () => {
     })
 
     it('should get suite result with one error', async function () {
-      this.timeout(4000)
-
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {

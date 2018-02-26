@@ -1,4 +1,12 @@
 /**
+ * @typedef {Object} DialogDiffer.Config
+ * @property {String} [logLevel=error]
+ * @property {Number} [browserTimeout=5000] Milliseconds to wait for browser instance to start, page to open, and page waiting selectors
+ * @property {Object} [puppeteerLaunchOptions] {@link https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#puppeteerlaunchoptions|Puppeteer launch options}
+ * @memberOf DialogDiffer
+ */
+
+/**
  * @typedef {Object} DialogDiffer.Error
  * @property {String} code
  * @property {String} message
@@ -44,6 +52,7 @@
  * @property {String} [waitForSelector]
  * @property {String} [crop]
  * @property {Number} [timeout]
+ * @property {function(width: Number, height: Number): { width: Number, height: Number }} [resize]
  * @property {{code: String, message: String, args: [Object], stack: [Object]}} [error] Injected
  * @property {Array<DialogDiffer.DialogScreenshot>} [screenshots] Injected
  * @property {DialogDiffer.DialogOptions} [options]
@@ -57,8 +66,6 @@
  * @property {String} currentVersion
  * @property {Boolean} [isForceSnap]
  * @property {Boolean} [isForceDiff]
- * @property {String} [database]
- * @property {String} [logLevel]
  * @memberOf DialogDiffer
  */
 
@@ -138,6 +145,7 @@ const DatabaseHandler = require('./handlers/database.handler')
 const SnapHandler = require('./handlers/snap.handler')
 const DifferHandler = require('./handlers/differ.handler')
 const logger = require('./logger')
+const configLib = require('./config.lib')
 
 const ERROR_CONSTANTS = require('./constants/error.constants')
 const SUITE_CONSTANTS = require('./constants/suite.constants')
@@ -153,20 +161,20 @@ const DialogHelper = require('./helpers/dialog.helper')
  */
 class DialogDiffer {
   /**
-   * @param {AbstractDatabaseLayer|String} [database]
+   * @param {AbstractDatabaseLayer|String} [databaseLayer]
    * @param {DatabaseHandler} [databaseHandler]
    * @param {DifferHandler} [differHandler]
    * @param {SnapHandler} [snapHandler]
-   * @param {String} [logLevel]
+   * @param {DialogDiffer.Config} [config]
    */
   constructor ({
     databaseLayer = null,
     databaseHandler = null,
     differHandler = null,
     snapHandler = null,
-    logLevel = LOGGER_CONSTANTS.ERROR_LOG_LEVEL
+    config = {}
   } = {}) {
-    logger.setLevel(logLevel)
+    logger.setLevel(configLib.getConfig(config).logLevel)
     /** @type {DatabaseHandler} */
     this.databaseHandler = databaseHandler || new DatabaseHandler(databaseLayer)
     /** @type {DifferHandler} */
