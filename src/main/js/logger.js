@@ -7,7 +7,7 @@ const collections = {
   infos: []
 }
 
-let currentLevel = LOGGER_CONSTANTS.DEBUG_LOG_LEVEL
+let currentLevel = LOGGER_CONSTANTS.ERROR_LOG_LEVEL
 
 /**
  * @interface Logger

@@ -123,22 +123,22 @@ class DifferHandler {
    * @throws {DialogDiffer.Error}
    */
   async differDialog (options, dialogOriginal, dialogCurrent) {
-    // dialog error
-    if (dialogOriginal.error || dialogCurrent.error) {
-      return this.createDialogsResult(
-        dialogOriginal,
-        dialogCurrent,
-        DIFFER_CONSTANTS.ERROR_DIFFER_RESULT,
-        []
-      )
-    }
-
     // dialog deleted or added
     if (!dialogOriginal || !dialogCurrent) {
       return this.createDialogsResult(
         dialogOriginal,
         dialogCurrent,
         !dialogCurrent ? DIFFER_CONSTANTS.DELETED_DIFFER_RESULT : DIFFER_CONSTANTS.ADDED_DIFFER_RESULT,
+        []
+      )
+    }
+
+    // dialog error
+    if (dialogOriginal.error || dialogCurrent.error) {
+      return this.createDialogsResult(
+        dialogOriginal,
+        dialogCurrent,
+        DIFFER_CONSTANTS.ERROR_DIFFER_RESULT,
         []
       )
     }
