@@ -119,28 +119,41 @@ class DifferHandler {
    * @param {DialogDiffer.Options} options
    * @param {DialogDiffer.Dialog|null} dialogOriginal
    * @param {DialogDiffer.Dialog|null} dialogCurrent
+   * @param {DialogDiffer.OnDiffCallback} [onDiff]
    * @returns {Promise<DialogDiffer.DialogsResult>}
    * @throws {DialogDiffer.Error}
    */
-  async differDialog (options, dialogOriginal, dialogCurrent) {
+  async differDialog (options, dialogOriginal, dialogCurrent, {onDiff = null} = {}) {
     // dialog deleted or added
     if (!dialogOriginal || !dialogCurrent) {
-      return this.createDialogsResult(
+      const dialogsResult = this.createDialogsResult(
         dialogOriginal,
         dialogCurrent,
         !dialogCurrent ? DIFFER_CONSTANTS.DELETED_DIFFER_RESULT : DIFFER_CONSTANTS.ADDED_DIFFER_RESULT,
         []
       )
+
+      if (onDiff) {
+        onDiff(dialogsResult)
+      }
+
+      return dialogsResult
     }
 
     // dialog error
     if (dialogOriginal.error || dialogCurrent.error) {
-      return this.createDialogsResult(
+      const dialogsResult = this.createDialogsResult(
         dialogOriginal,
         dialogCurrent,
         DIFFER_CONSTANTS.ERROR_DIFFER_RESULT,
         []
       )
+
+      if (onDiff) {
+        onDiff(dialogsResult)
+      }
+
+      return dialogsResult
     }
 
     // get dialog result from database
@@ -157,12 +170,18 @@ class DifferHandler {
         DialogHelper.createUniqueDialogId(dialogCurrent)
       )
 
-      return this.createDialogsResult(
+      const dialogsResult = this.createDialogsResult(
         dialogOriginal,
         dialogCurrent,
         dialogResultDb.result,
         dialogResultDb.differ
       )
+
+      if (onDiff) {
+        onDiff(dialogsResult)
+      }
+
+      return dialogsResult
     }
     // get dialog result from image diff
     else {
@@ -175,7 +194,7 @@ class DifferHandler {
         DialogHelper.createUniqueDialogId(dialogCurrent)
       )
 
-      return this.differDialogWithImageDiff(options, dialogOriginal, dialogCurrent)
+      return this.differDialogWithImageDiff(options, dialogOriginal, dialogCurrent, {onDiff})
     }
   }
 
@@ -183,11 +202,12 @@ class DifferHandler {
    * @param {DialogDiffer.Options} options
    * @param {DialogDiffer.Dialog|null} dialogOriginal
    * @param {DialogDiffer.Dialog|null} dialogCurrent
+   * @param {DialogDiffer.OnDiffCallback} [onDiff]
    * @returns {Promise<DialogDiffer.DialogsResult>}
    * @throws {DialogDiffer.Error}
    * @private
    */
-  async differDialogWithImageDiff (options, dialogOriginal, dialogCurrent) {
+  async differDialogWithImageDiff (options, dialogOriginal, dialogCurrent, {onDiff = null} = {}) {
     // prepare dialogs screenshots
     this.prepareDialogScreenshots(dialogOriginal)
     this.prepareDialogScreenshots(dialogCurrent)
@@ -223,15 +243,19 @@ class DifferHandler {
     // save dialogs result to database
     await this.databaseHandler.saveDialogsResult(options, dialogOriginal, dialogCurrent, dialogsResult)
 
+    if (onDiff) {
+      onDiff(dialogsResult)
+    }
+
     return dialogsResult
   }
 
   /**
    * @param {DialogDiffer.Suite} suite
-   * @param {DialogDiffer.OnEndCallback} [onEnd]
-   * @returns {Promise<DialogDiffer.SuiteResult>}
+   * @param {DialogDiffer.OnDiffCallback} [onDiff]
+   * @returns {Promise<{suiteResult: DialogDiffer.SuiteResult, suiteResultDb: DialogDiffer.Database.SuiteResult}>}
    */
-  async differSuite (suite, {onEnd = null} = {}) {
+  async differSuite (suite, {onDiff = null} = {}) {
     logger.log(TAG, 'differSuite', 'Differ suite...', null, suite.id)
 
     // get suite result from database
@@ -244,7 +268,7 @@ class DifferHandler {
     /** @type {Array<DialogDiffer.DialogsResult>} */
     const dialogsResults = await Promise.map(
       suiteResult.results,
-      result => this.differDialog(suite.options, result.original, result.current),
+      result => this.differDialog(suite.options, result.original, result.current, {onDiff}),
       {concurrency: 10}
     )
 
@@ -255,36 +279,30 @@ class DifferHandler {
     })
 
     // finish suite result
-    return this.finishSuiteResult(suiteResult, {onEnd})
+    return this.finishSuiteResult(suiteResult)
   }
 
   /**
    * @param {DialogDiffer.Suite} suite
-   * @param {DialogDiffer.OnStartCallback} [onStart]
-   * @return {Promise<DialogDiffer.Suite>}
+   * @return {Promise<{suite: DialogDiffer.Suite, suiteResultDb: DialogDiffer.Database.SuiteResult}>}
    * @throws {DialogDiffer.Error}
    */
-  async initSuiteResult (suite, {onStart = null} = {}) {
+  async initSuiteResult (suite) {
     // get suite result from database or create new suite result in database
     const suiteResultDb = suite.id ? await this.databaseHandler.getSuiteResult(suite.id) : await this.databaseHandler.newSuiteResult(suite)
 
     // inject Suite id
     suite.id = suiteResultDb.id
 
-    if (onStart) {
-      onStart(suiteResultDb)
-    }
-
-    return suite
+    return {suite, suiteResultDb}
   }
 
   /**
    * @param {DialogDiffer.SuiteResult} suiteResult
-   * @param {DialogDiffer.OnEndCallback} [onEnd]
-   * @return {Promise<DialogDiffer.SuiteResult>}
+   * @return {Promise<{suiteResult: DialogDiffer.SuiteResult, suiteResultDb: DialogDiffer.Database.SuiteResult}>}
    * @throws {DialogDiffer.Error}
    */
-  async finishSuiteResult (suiteResult, {onEnd = null} = {}) {
+  async finishSuiteResult (suiteResult) {
     // duration
     suiteResult.stats.duration = Date.now() - suiteResult.timestamp
 
@@ -323,11 +341,7 @@ class DifferHandler {
     // get suite result from database
     const suiteResultDb = await this.databaseHandler.getSuiteResult(suiteResult.id)
 
-    if (onEnd) {
-      onEnd(suiteResultDb)
-    }
-
-    return suiteResult
+    return {suiteResult, suiteResultDb}
   }
 
   /**

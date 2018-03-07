@@ -32,6 +32,8 @@ describe('DialogDiffer', () => {
 
   describe('diff', () => {
     it('should diff', async function () {
+      this.timeout(5000)
+
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {
@@ -76,6 +78,8 @@ describe('DialogDiffer', () => {
     })
 
     it('should diff valid dialogs and not error dialogs', async function () {
+      this.timeout(5000)
+
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {
@@ -156,6 +160,8 @@ describe('DialogDiffer', () => {
 
   describe('getSuiteResult', () => {
     it('should get suite result', async function () {
+      this.timeout(5000)
+
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {
@@ -267,6 +273,8 @@ describe('DialogDiffer', () => {
     })
 
     it('should get suite result with one error', async function () {
+      this.timeout(5000)
+
       /** @type {DialogDiffer.Suite} */
       const suite = {
         options: {

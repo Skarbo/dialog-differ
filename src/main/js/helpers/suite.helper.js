@@ -145,3 +145,24 @@ module.exports.validateSuite = (suite) => {
 
   return Promise.resolve(true)
 }
+
+/**
+ * @param {DialogDiffer.Suite} suite
+ * @return {Number} Number of current and original dialogs
+ **/
+module.exports.getNumberOfDialogs = (suite) => {
+  return suite.current.length + suite.original.length
+}
+
+/**
+ * @param {DialogDiffer.Suite} suite
+ * @return {Number} Number of unique dialogs
+ **/
+module.exports.getNumberOfUniqueDialogs = (suite) => {
+  return suite.current
+    .concat(suite.original)
+    .map(dialog => dialog.id)
+    .filter((elem, pos, arr) => {
+      return arr.indexOf(elem) === pos
+    }).length
+}

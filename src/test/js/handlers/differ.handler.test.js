@@ -248,7 +248,7 @@ describe('differ handler', () => {
 
       return differHandler
         .initSuiteResult(suite)
-        .then(suite => {
+        .then(({suite}) => {
           return databaseHandler.getSuiteResult(suite.id)
         })
         .then(suiteResultDb => {
@@ -261,7 +261,7 @@ describe('differ handler', () => {
           const suiteResult = SuiteHelper.prepareSuiteResults(suite, suiteResultDb)
           return differHandler.finishSuiteResult(suiteResult)
         })
-        .then(suiteResult => {
+        .then(({suiteResult}) => {
           expect(suiteResult).to.be.an('object')
           expect(suiteResult.id).to.be.an('string')
           expect(suiteResult.status).to.equal(SUITE_CONSTANTS.FINISHED_STATUS)
@@ -321,7 +321,7 @@ describe('differ handler', () => {
 
       return snapHandler.snapSuite(suite)
         .then(() => differHandler.differSuite(suite))
-        .then(suiteResult => {
+        .then(({suiteResult}) => {
           // console.log( JSON.stringify( suiteResult, null, 2 ) );
           expect(suiteResult).to.be.an('object')
           expect(suite.options).to.deep.equal(suiteResult.options)

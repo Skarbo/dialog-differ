@@ -10,6 +10,7 @@ const configLib = require('../config.lib')
 
 const LOGGER_CONSTANTS = require('../constants/logger.constants')
 const ERROR_CONSTANTS = require('../constants/error.constants')
+const HASH_DIALOGS_COLLECTIONS = 10
 
 const DialogHelper = require('../helpers/dialog.helper')
 const ErrorHelper = require('../helpers/error.helper')
@@ -181,7 +182,7 @@ class SnapHandler {
           )
         }
         else {
-          return this.snapDialogFromDatabase(par.dialog, par.screenshots)
+          return this.snapDialogFromDatabase(par.dialog, par.screenshots, {onSnap})
         }
       }), dialogsCollection.nonSnappedCollection.map(par => {
         // non snapped collection
@@ -233,13 +234,14 @@ class SnapHandler {
 
       // use dialog from database if already snapped, and not force new snap
       if (DialogHelper.isDialogSnapped(DialogHelper.getDialogSizes(options.sizes, dialog), dialog, dialogScreenshotsDb) && !options.isForceSnap) {
-        await this.snapDialogFromDatabase(dialog, dialogScreenshotsDb)
+        await this.snapDialogFromDatabase(dialog, dialogScreenshotsDb, {onSnap})
       }
       // snap dialog using browser
       else {
-        await this.snapDialogFromBrowser(options, dialog)
+        await this.snapDialogFromBrowser(options, dialog, {onSnap})
       }
 
+      // callback
       if (onSnap) {
         onSnap(dialog)
       }
@@ -247,6 +249,11 @@ class SnapHandler {
       return dialog
     }
     catch (err) {
+      // callback
+      if (onSnap) {
+        onSnap(dialog, {err})
+      }
+
       throw err
     }
   }
@@ -261,18 +268,29 @@ class SnapHandler {
   async snapDialogFromDatabase (dialog, dialogScreenshotsDb, {onSnap} = {}) {
     logger.log(TAG, 'snapDialogFromDatabase', 'Snapping dialog \'%s\' from database', null, dialog.id)
 
-    // append dialog screenshots from database
-    dialogScreenshotsDb.forEach(dialogScreenshotDb => {
-      dialog.screenshots.push(DialogHelper.createDialogScreenshot(dialogScreenshotDb.width, dialogScreenshotDb.height, dialogScreenshotDb.base64))
-    })
+    try {
+      // append dialog screenshots from database
+      dialogScreenshotsDb.forEach(dialogScreenshotDb => {
+        dialog.screenshots.push(DialogHelper.createDialogScreenshot(dialogScreenshotDb.width, dialogScreenshotDb.height, dialogScreenshotDb.base64))
+      })
 
-    logger.info(TAG, 'snapDialogFromDatabase', 'Dialog \'%s\' using \'%d\' screenshots from database', LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogId(dialog), dialogScreenshotsDb.length)
+      logger.info(TAG, 'snapDialogFromDatabase', 'Dialog \'%s\' using \'%d\' screenshots from database', LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogId(dialog), dialogScreenshotsDb.length)
 
-    if (onSnap) {
-      onSnap(dialog)
+      // callback
+      if (onSnap) {
+        onSnap(dialog, {isDatabase: true})
+      }
+
+      return dialog
     }
+    catch (err) {
+      // callback
+      if (onSnap) {
+        onSnap(dialog, {err, isDatabase: true})
+      }
 
-    return dialog
+      throw err
+    }
   }
 
   /**
@@ -381,6 +399,11 @@ class SnapHandler {
       }
 
       logger.error(TAG, 'snapDialogFromBrowser', error.message, error.code, ...error.args, error.stack)
+
+      // callback
+      if (onSnap) {
+        onSnap(dialog, {err: error})
+      }
     }
 
     // close page and browser
@@ -424,117 +447,178 @@ class SnapHandler {
   async snapDialogsWithHashFromBrowser (options, dialogs, {onSnap} = {}) {
     const dialogUrl = dialogs[0].url
     const dialogVersion = dialogs[0].version
-    const dialogId = dialogs[0].id
-    const dialogHashList = dialogs.map(dialog => dialog.hash)
-    let lastDialogId = dialogs[0].id
 
-    let browser
-    let page
+    /** @type {Array<Array<DialogDiffer.Dialog>>} */
+    const dialogsCollections = dialogs.reduce((rows, key, index) => (index % HASH_DIALOGS_COLLECTIONS === 0 ? rows.push([key]) : rows[rows.length - 1].push(key)) && rows, [])
 
-    try {
-      logger.log(TAG, 'snapDialogsWithHashFromBrowser', 'Snapping %d dialogs with hash from browser', null, dialogs.length, dialogs.map(dialog => dialog.id))
+    // snap dialogs collections
+    await Promise
+      .map(
+        dialogsCollections,
+        /** @param {Array<DialogDiffer.Dialog>} dialogsCollection */
+        async (dialogsCollection) => {
+          /** @type {DialogDiffer.Dialog} */
+          let lastDialog = dialogsCollection[0]
+          let browser
+          let page
 
-      // launch browser
-      browser = await puppeteer.launch({
-        timeout: this.config.browserTimeout,
-        ...this.config.puppeteerLaunchOptions,
-      })
+          try {
+            logger.log(TAG, 'snapDialogsWithHashFromBrowser', 'Snapping %d dialogs with hash from browser', null, dialogsCollection.length, dialogsCollection.map(dialog => dialog.id))
 
-      // create page
-      page = await browser.newPage()
+            // launch browser
+            browser = await puppeteer.launch({
+              timeout: this.config.browserTimeout,
+              ...this.config.puppeteerLaunchOptions,
+            })
 
-      // listen on error
-      page.on('error', msg => {
-        logger.warn(TAG, 'snapDialogsWithHashFromBrowser', 'Error in dialogs with hash. Message: \'%s\'. Url: \'%s\'. Version: \'%s\'. Last dialog id: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, msg, dialogUrl, dialogVersion, lastDialogId)
-      })
+            // create page
+            page = await browser.newPage()
 
-      // go to dialog url
-      await page.goto(dialogUrl, {
-        timeout: this.config.browserTimeout,
-      })
+            // listen on error
+            page.on('error', msg => {
+              logger.warn(TAG, 'snapDialogsWithHashFromBrowser', 'Error in dialogs with hash. Message: \'%s\'. Url: \'%s\'. Version: \'%s\'. Last dialog id: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, msg, dialogUrl, dialogVersion, lastDialog)
+            })
 
-      // stop CSS animations
-      await page.evaluate(stopCSSAnimationsEvaluate)
+            // go to dialog url
+            await page.goto(dialogUrl, {
+              timeout: this.config.browserTimeout,
+            })
 
-      await Promise.each(dialogs,
-        /** @type {DialogDiffer.Dialog} dialog */
-        async dialog => {
-          dialog.screenshots = []
-          lastDialogId = dialog.id
+            // stop CSS animations
+            await page.evaluate(stopCSSAnimationsEvaluate)
 
-          logger.log(TAG, 'snapDialogsWithHashFromBrowser', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId(dialog), dialog.hash)
+            await Promise.each(dialogsCollection,
+              /** @type {DialogDiffer.Dialog} dialog */
+              async dialog => {
+                try {
+                  dialog.screenshots = []
+                  lastDialog = dialog
 
-          // get sizes
-          const sizes = DialogHelper.getDialogSizes(options.sizes, dialog)
+                  logger.log(TAG, 'snapDialogsWithHashFromBrowser', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId(dialog), dialog.hash)
 
-          // redirect to hash
-          await page.evaluate(redirectHashEvaluate, dialog.hash)
+                  // get sizes
+                  const sizes = DialogHelper.getDialogSizes(options.sizes, dialog)
 
-          // wait for selector
-          if (dialog.waitForSelector) {
-            await page.waitForSelector(dialog.waitForSelector, {
-              timeout: this.config.browserTimeout
+                  // redirect to hash
+                  await page.evaluate(redirectHashEvaluate, dialog.hash)
+
+                  // wait for selector
+                  if (dialog.waitForSelector) {
+                    await page.waitForSelector(dialog.waitForSelector, {
+                      timeout: this.config.browserTimeout
+                    })
+                  }
+
+                  // for each size
+                  await Promise.each(sizes, async size => {
+                    // set viewport
+                    await page.setViewport(size)
+
+                    // wait for timeout
+                    await page.waitFor(dialog.timeout || 0)
+
+                    // resize
+                    if (dialog.resize) {
+                      // resize
+                      let newSize = await page.evaluate(dialog.resize, size.width, size.height)
+
+                      // set new viewport
+                      await page.setViewport(newSize)
+
+                      // resize once more in case of responsive changes
+                      newSize = await page.evaluate(dialog.resize, newSize.width, newSize.height)
+
+                      // set new viewport
+                      await page.setViewport(newSize)
+                    }
+
+                    // take screenshot
+                    await puppeteerScreenshot(page, dialog, size, this.databaseHandler)
+                  })
+
+                  // callback
+                  if (onSnap) {
+                    onSnap(dialog)
+                  }
+                }
+                catch (err) {
+                  const error = ErrorHelper.createError(
+                    err,
+                    'Could not snap dialog \'%s\' version \'%s\' with hash from Browser. Url: \'%s#%s\'. Version: \'%s\'.',
+                    ERROR_CONSTANTS.SNAP_DIALOG_WITH_HASH_FROM_BROWSER_ERROR,
+                    lastDialog.id,
+                    lastDialog.version,
+                    dialogUrl,
+                    lastDialog.hash
+                  )
+
+                  dialog.error = {
+                    code: error.code,
+                    message: error.message,
+                    args: error.args,
+                    stack: error.stack,
+                  }
+
+                  logger.error(TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, ...error.args, error.stack)
+
+                  // callback
+                  if (onSnap) {
+                    onSnap(dialog, {err: error})
+                  }
+
+                  // go to dialog url
+                  await page.goto(dialogUrl, {
+                    timeout: this.config.browserTimeout,
+                  })
+
+                  // stop CSS animations
+                  await page.evaluate(stopCSSAnimationsEvaluate)
+                }
+              }
+            )
+          }
+          catch (err) {
+            const error = ErrorHelper.createError(
+              err,
+              'Could not snap dialogs with hash from Browser. Url: \'%s#%s\'. Version: \'%s\'. Id: \'%s\'.',
+              ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR,
+              dialogUrl,
+              lastDialog.hash,
+              dialogVersion,
+              lastDialog.id
+            )
+
+            logger.error(TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, ...error.args, error.stack)
+
+            dialogsCollection.forEach(dialog => {
+              if (dialog.screenshots && dialog.screenshots.length === 0) {
+                dialog.error = {
+                  code: error.code,
+                  message: error.message,
+                  args: error.args,
+                  stack: error.stack,
+                }
+
+                // callback
+                if (onSnap) {
+                  onSnap(dialog, {err: error})
+                }
+              }
             })
           }
 
-          // for each size
-          await Promise.each(sizes, async size => {
-            // set viewport
-            await page.setViewport(size)
-
-            // wait for timeout
-            await page.waitFor(dialog.timeout || 0)
-
-            // resize
-            if (dialog.resize) {
-              // resize
-              let newSize = await page.evaluate(dialog.resize, size.width, size.height)
-
-              // set new viewport
-              await page.setViewport(newSize)
-
-              // resize once more in case of responsive changes
-              newSize = await page.evaluate(dialog.resize, newSize.width, newSize.height)
-
-              // set new viewport
-              await page.setViewport(newSize)
-            }
-
-            // take screenshot
-            await puppeteerScreenshot(page, dialog, size, this.databaseHandler)
-          })
-
-          // callback
-          if (onSnap) {
-            onSnap(dialog)
+          // close page
+          if (page) {
+            await page.close()
           }
-        }
+
+          // close browser
+          if (browser) {
+            await browser.close()
+          }
+        },
+        {concurrency: 3}
       )
-    }
-    catch (err) {
-      const error = ErrorHelper.createError(err, 'Could not snap dialogs with hash from Browser. Url: \'%s\'. Version: \'%s\'. First id: \'%s\'. Last dialog id: \'%s\'. Hash list: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, dialogUrl, dialogVersion, dialogId, lastDialogId, dialogHashList.join(', '))
-
-      dialogs.forEach(dialog => {
-        dialog.error = {
-          code: error.code,
-          message: error.message,
-          args: error.args,
-          stack: error.stack,
-        }
-      })
-
-      logger.error(TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, ...error.args, error.stack)
-    }
-
-    // close page
-    if (page) {
-      await page.close()
-    }
-
-    // close browser
-    if (browser) {
-      await browser.close()
-    }
 
     return dialogs
   }

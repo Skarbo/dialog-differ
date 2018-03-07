@@ -1,3 +1,5 @@
+require('string-format-js')
+
 /**
  * @param {Error|DialogDiffer.Error|null} err
  * @param {String} message
@@ -7,6 +9,7 @@
  */
 module.exports.createError = (err, message, code = null, ...args) => {
   code = err && err.code || code
+  message = (message || '').format.apply(message || '', args)
   err = err && err.args ? err.err : err || new Error(message, code)
 
   args = args.concat(err.args || [])

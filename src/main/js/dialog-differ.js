@@ -123,11 +123,15 @@
 
 /**
  * @callback DialogDiffer.OnSnapCallback
+ * @param {DialogDiffer.Dialog} dialog
+ * @param {Object} [extra]
+ * @param {ErrorHelper} [err]
  * @memberOf DialogDiffer
  */
 
 /**
  * @callback DialogDiffer.OnDiffCallback
+ * @param {DialogDiffer.DialogsResult} dialogsResult
  * @memberOf DialogDiffer
  */
 
@@ -140,6 +144,8 @@
 process.setMaxListeners(0) // needed for puppeteer
 
 const TAG = 'DialogDiffer'
+
+const ProgressBar = require('progress')
 
 const DatabaseHandler = require('./handlers/database.handler')
 const SnapHandler = require('./handlers/snap.handler')
@@ -211,25 +217,67 @@ class DialogDiffer {
   /**
    * @param {DialogDiffer.Suite} suite
    * @param {DialogDiffer.OnStartCallback} [onStart]
+   * @param {function({dialogs: Number}): void} [onSnapStart]
    * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {function({dialogs: Number}): void} [onSnapEnd]
+   * @param {function({dialogs: Number}): void} [onDiffStart]
    * @param {DialogDiffer.OnDiffCallback} [onDiff]
+   * @param {function({dialogs: Number}): void} [onDiffEnd]
    * @param {DialogDiffer.OnEndCallback} [onEnd]
    * @return {Promise<DialogDiffer.SuiteResult>}
    * @throws {DialogDiffer.Error}
    */
-  async diff (suite, {onStart = null, onSnap = null, onDiff = null, onEnd = null} = {}) {
+  async diff (suite, {
+    onStart = null,
+    onSnapStart = null,
+    onSnap = null,
+    onSnapEnd = null,
+    onDiffStart = null,
+    onDiff = null,
+    onDiffEnd = null,
+    onEnd = null,
+  } = {}) {
     try {
       // validate Suite
       await SuiteHelper.validateSuite(suite)
 
+      const numberOfDialogs = SuiteHelper.getNumberOfDialogs(suite)
+      const numberOfUniqueDialogs = SuiteHelper.getNumberOfUniqueDialogs(suite)
+
       // init Suite result
-      await this.differHandler.initSuiteResult(suite, {onStart})
+      const {suiteResultDb: initSuiteResultDb} = await this.differHandler.initSuiteResult(suite)
+
+      if (onStart) {
+        onStart(initSuiteResultDb)
+      }
+
+      if (onSnapStart) {
+        onSnapStart({dialogs: numberOfDialogs})
+      }
 
       // snap Suite
       await this.snapHandler.snapSuite(suite, {onSnap})
 
+      if (onSnapEnd) {
+        onSnapEnd({dialogs: numberOfDialogs})
+      }
+
+      if (onDiffStart) {
+        onDiffStart({dialogs: numberOfUniqueDialogs})
+      }
+
       // differ Suite
-      return await this.differHandler.differSuite(suite, {onDiff, onEnd})
+      const {suiteResult, suiteResultDb} = await this.differHandler.differSuite(suite, {onDiff})
+
+      if (onDiffEnd) {
+        onDiffEnd({dialogs: numberOfUniqueDialogs})
+      }
+
+      if (onEnd) {
+        onEnd(suiteResultDb)
+      }
+
+      return suiteResult
     }
     catch (err) {
       logger.error(TAG, 'diff', err.toString(), JSON.stringify(err.args), err.stack)

@@ -324,7 +324,7 @@ describe('snap handler', () => {
           expect(dialogs[0].screenshots).to.have.lengthOf(0)
 
           expect(dialogs[0].error).to.be.an('object')
-          expect(dialogs[0].error.code).to.equal(ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR)
+          expect(dialogs[0].error.code).to.equal(ERROR_CONSTANTS.SNAP_DIALOG_WITH_HASH_FROM_BROWSER_ERROR)
           expect(dialogs[0].error.message).to.be.an('string')
         })
     }).timeout(4000)
