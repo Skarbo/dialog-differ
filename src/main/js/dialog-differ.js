@@ -5,6 +5,8 @@
  * @property {Object} [puppeteerLaunchOptions] {@link https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#puppeteerlaunchoptions|Puppeteer launch options}
  * @property {Number} [snapDialogsWithHashFromBrowserCollections] Number of hash dialogs to collect into collections (0 is off)
  * @property {Number} [snapDialogsWithHashFromBrowserConcurrency] Number of hash dialogs with has to run at same time
+ * @property {Number} [diffHighlightColor=#ff0000] Diff highlight color, default red
+ * @property {Number} [diffTolerance=2.3] Diff tolerance, see {@link https://github.com/gemini-testing/looks-same|looks-same} library
  * @memberOf DialogDiffer
  */
 
@@ -192,9 +194,9 @@ class DialogDiffer {
     /** @type {DatabaseHandler} */
     this.databaseHandler = databaseHandler || new DatabaseHandler(databaseLayer)
     /** @type {DifferHandler} */
-    this.differHandler = differHandler || new DifferHandler(this.databaseHandler)
+    this.differHandler = differHandler || new DifferHandler(this.databaseHandler, config)
     /** @type {SnapHandler} */
-    this.snapHandler = snapHandler || new SnapHandler(this.databaseHandler)
+    this.snapHandler = snapHandler || new SnapHandler(this.databaseHandler, config)
   }
 
   static get ERROR_CONSTANTS () {

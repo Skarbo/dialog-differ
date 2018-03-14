@@ -10,6 +10,7 @@ const LOGGER_CONSTANTS = require('../constants/logger.constants')
 const DIFFER_CONSTANTS = require('../constants/differ.constants')
 const SUITE_CONSTANTS = require('../constants/suite.constants')
 
+const configLib = require('../config.lib')
 const SuiteHelper = require('../helpers/suite.helper')
 const logger = require('../logger')
 
@@ -26,9 +27,11 @@ const logger = require('../logger')
 class DifferHandler {
   /**
    * @param {DatabaseHandler} databaseHandler
+   * @param {DialogDiffer.Config} [config]
    */
-  constructor (databaseHandler) {
+  constructor (databaseHandler, config = {}) {
     this.databaseHandler = databaseHandler
+    this.config = configLib.getConfig(config)
   }
 
   /**
@@ -102,45 +105,52 @@ class DifferHandler {
         }
       }
 
-      looksSame(screenshotCurrent.path, screenshotOriginal.path, {strict: false}, (err, isIdentical) => {
-        if (err) {
-          reject(err)
-          removeTmpFiles()
-          return
-        }
+      looksSame(
+        screenshotCurrent.path,
+        screenshotOriginal.path,
+        {
+          strict: false,
+          tolerance: this.config.diffTolerance,
+        },
+        (err, isIdentical) => {
+          if (err) {
+            reject(err)
+            removeTmpFiles()
+            return
+          }
 
-        // identical
-        if (isIdentical) {
-          resolve({
-            isIdentical: true,
-            base64: null
-          })
-          removeTmpFiles()
-        }
-        // diff
-        else {
-          looksSame.createDiff({
-            reference: screenshotCurrent.path,
-            current: screenshotOriginal.path,
-            diff: tmpFile.name,
-            highlightColor: '#ff0000', // color to highlight the differences
-            strict: false, // strict comparison
-            // tolerance: 2.5,
-          }, (err) => {
-            if (err) {
-              reject(err)
-              removeTmpFiles()
-              return
-            }
-
+          // identical
+          if (isIdentical) {
             resolve({
-              isIdentical: false,
-              base64: base64Img.base64Sync(tmpFile.name)
+              isIdentical: true,
+              base64: null
             })
             removeTmpFiles()
-          })
-        }
-      })
+          }
+          // diff
+          else {
+            looksSame.createDiff({
+              reference: screenshotCurrent.path,
+              current: screenshotOriginal.path,
+              diff: tmpFile.name,
+              highlightColor: this.config.diffHighlightColor,
+              strict: false,
+              tolerance: this.config.diffTolerance,
+            }, (err) => {
+              if (err) {
+                reject(err)
+                removeTmpFiles()
+                return
+              }
+
+              resolve({
+                isIdentical: false,
+                base64: base64Img.base64Sync(tmpFile.name)
+              })
+              removeTmpFiles()
+            })
+          }
+        })
     })
   }
 

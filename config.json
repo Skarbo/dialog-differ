@@ -2,5 +2,7 @@
   "browserTimeout": 5000,
   "logLevel": "error",
   "snapDialogsWithHashFromBrowserCollections": 10,
-  "snapDialogsWithHashFromBrowserConcurrency": 3
+  "snapDialogsWithHashFromBrowserConcurrency": 3,
+  "diffHighlightColor": "#ff0000",
+  "diffTolerance": 2.3
 }
