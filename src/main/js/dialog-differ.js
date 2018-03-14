@@ -3,6 +3,8 @@
  * @property {String} [logLevel=error]
  * @property {Number} [browserTimeout=5000] Milliseconds to wait for browser instance to start, page to open, and page waiting selectors
  * @property {Object} [puppeteerLaunchOptions] {@link https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#puppeteerlaunchoptions|Puppeteer launch options}
+ * @property {Number} [snapDialogsWithHashFromBrowserCollections] Number of hash dialogs to collect into collections (0 is off)
+ * @property {Number} [snapDialogsWithHashFromBrowserConcurrency] Number of hash dialogs with has to run at same time
  * @memberOf DialogDiffer
  */
 
@@ -66,6 +68,7 @@
  * @property {String} currentVersion
  * @property {Boolean} [isForceSnap]
  * @property {Boolean} [isForceDiff]
+ * @property {Object} [extra] Extra data that can be stored in database
  * @memberOf DialogDiffer
  */
 
@@ -91,6 +94,7 @@
  * @property {Number} deleted
  * @property {Number} duration
  * @property {Number} error
+ * @property {Number} dialogs
  * @memberOf DialogDiffer
  */
 
@@ -123,15 +127,21 @@
 
 /**
  * @callback DialogDiffer.OnSnapCallback
- * @param {DialogDiffer.Dialog} dialog
- * @param {Object} [extra]
- * @param {ErrorHelper} [err]
+ * @param {Object} obj
+ * @param {String} obj.suiteId
+ * @param {DialogDiffer.Dialog} obj.dialog
+ * @param {ErrorHelper} [obj.err]
+ * @param {Boolean} [obj.isDatabase]
+ * @param {Boolean} [isOriginal]
+ * @param {Boolean} [isCurrent]
  * @memberOf DialogDiffer
  */
 
 /**
  * @callback DialogDiffer.OnDiffCallback
- * @param {DialogDiffer.DialogsResult} dialogsResult
+ * @param {Object} obj
+ * @param {String} obj.suiteId
+ * @param {DialogDiffer.DialogsResult} obj.dialogsResult
  * @memberOf DialogDiffer
  */
 
@@ -144,8 +154,6 @@
 process.setMaxListeners(0) // needed for puppeteer
 
 const TAG = 'DialogDiffer'
-
-const ProgressBar = require('progress')
 
 const DatabaseHandler = require('./handlers/database.handler')
 const SnapHandler = require('./handlers/snap.handler')
@@ -217,12 +225,12 @@ class DialogDiffer {
   /**
    * @param {DialogDiffer.Suite} suite
    * @param {DialogDiffer.OnStartCallback} [onStart]
-   * @param {function({dialogs: Number}): void} [onSnapStart]
+   * @param {function({suiteId: String, dialogs: Number}): void} [onSnapStart]
    * @param {DialogDiffer.OnSnapCallback} [onSnap]
-   * @param {function({dialogs: Number}): void} [onSnapEnd]
-   * @param {function({dialogs: Number}): void} [onDiffStart]
+   * @param {function({suiteId: String, dialogs: Number}): void} [onSnapEnd]
+   * @param {function({suiteId: String, dialogs: Number}): void} [onDiffStart]
    * @param {DialogDiffer.OnDiffCallback} [onDiff]
-   * @param {function({dialogs: Number}): void} [onDiffEnd]
+   * @param {function({suiteId: String, dialogs: Number}): void} [onDiffEnd]
    * @param {DialogDiffer.OnEndCallback} [onEnd]
    * @return {Promise<DialogDiffer.SuiteResult>}
    * @throws {DialogDiffer.Error}
@@ -252,25 +260,37 @@ class DialogDiffer {
       }
 
       if (onSnapStart) {
-        onSnapStart({dialogs: numberOfDialogs})
+        onSnapStart({suiteId: initSuiteResultDb.id, dialogs: numberOfDialogs})
       }
 
       // snap Suite
-      await this.snapHandler.snapSuite(suite, {onSnap})
+      await this.snapHandler.snapSuite(suite, {
+        onSnap ({dialog, err, isDatabase, isOriginal, isCurrent}) {
+          if (onSnap) {
+            onSnap({suiteId: initSuiteResultDb.id, dialog, err, isDatabase, isOriginal, isCurrent})
+          }
+        }
+      })
 
       if (onSnapEnd) {
-        onSnapEnd({dialogs: numberOfDialogs})
+        onSnapEnd({suiteId: initSuiteResultDb.id, dialogs: numberOfDialogs})
       }
 
       if (onDiffStart) {
-        onDiffStart({dialogs: numberOfUniqueDialogs})
+        onDiffStart({suiteId: initSuiteResultDb.id, dialogs: numberOfUniqueDialogs})
       }
 
       // differ Suite
-      const {suiteResult, suiteResultDb} = await this.differHandler.differSuite(suite, {onDiff})
+      const {suiteResult, suiteResultDb} = await this.differHandler.differSuite(suite, {
+        onDiff ({dialogsResult}) {
+          if (onDiff) {
+            onDiff({suiteId: initSuiteResultDb.id, dialogsResult})
+          }
+        }
+      })
 
       if (onDiffEnd) {
-        onDiffEnd({dialogs: numberOfUniqueDialogs})
+        onDiffEnd({suiteId: initSuiteResultDb.id, dialogs: numberOfUniqueDialogs})
       }
 
       if (onEnd) {

@@ -2,7 +2,7 @@ const TAG = 'Differ'
 
 const tmp = require('tmp')
 const path = require('path')
-const imageDiff = require('image-diff')
+const looksSame = require('looks-same')
 const base64Img = require('base64-img')
 const Promise = require('bluebird')
 
@@ -11,7 +11,6 @@ const DIFFER_CONSTANTS = require('../constants/differ.constants')
 const SUITE_CONSTANTS = require('../constants/suite.constants')
 
 const SuiteHelper = require('../helpers/suite.helper')
-const DialogHelper = require('../helpers/dialog.helper')
 const logger = require('../logger')
 
 /**
@@ -77,39 +76,69 @@ class DifferHandler {
    * @returns {Promise<DifferHandler.DifferDialogScreenshotResult>}
    */
   differDialogScreenshot (screenshotOriginal, screenshotCurrent) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       const tmpFile = tmp.fileSync({
         postfix: '.png'
       })
 
-      imageDiff({
-        expectedImage: screenshotCurrent.path,
-        actualImage: screenshotOriginal.path,
-        diffImage: tmpFile.name
-      }, (err, isIdentical) => {
+      const removeTmpFiles = () => {
+        try {
+          if (tmpFile.removeCallback) {
+            tmpFile.removeCallback()
+          }
+
+          if (screenshotOriginal.removeCallback) {
+            screenshotOriginal.removeCallback()
+            delete screenshotOriginal.path
+          }
+
+          if (screenshotCurrent.removeCallback) {
+            screenshotCurrent.removeCallback()
+            delete screenshotCurrent.path
+          }
+        }
+        catch (err) {
+          // ignore
+        }
+      }
+
+      looksSame(screenshotCurrent.path, screenshotOriginal.path, {strict: false}, (err, isIdentical) => {
         if (err) {
           reject(err)
+          removeTmpFiles()
           return
         }
 
-        fulfill({
-          isIdentical: isIdentical,
-          base64: !isIdentical ? base64Img.base64Sync(tmpFile.name) : null
-        })
-
-        // remove tmp files
-        if (tmpFile.removeCallback) {
-          tmpFile.removeCallback()
+        // identical
+        if (isIdentical) {
+          resolve({
+            isIdentical: true,
+            base64: null
+          })
+          removeTmpFiles()
         }
+        // diff
+        else {
+          looksSame.createDiff({
+            reference: screenshotCurrent.path,
+            current: screenshotOriginal.path,
+            diff: tmpFile.name,
+            highlightColor: '#ff0000', // color to highlight the differences
+            strict: false, // strict comparison
+            // tolerance: 2.5,
+          }, (err) => {
+            if (err) {
+              reject(err)
+              removeTmpFiles()
+              return
+            }
 
-        if (screenshotOriginal.removeCallback) {
-          screenshotOriginal.removeCallback()
-          delete screenshotOriginal.path
-        }
-
-        if (screenshotCurrent.removeCallback) {
-          screenshotCurrent.removeCallback()
-          delete screenshotCurrent.path
+            resolve({
+              isIdentical: false,
+              base64: base64Img.base64Sync(tmpFile.name)
+            })
+            removeTmpFiles()
+          })
         }
       })
     })
@@ -119,11 +148,12 @@ class DifferHandler {
    * @param {DialogDiffer.Options} options
    * @param {DialogDiffer.Dialog|null} dialogOriginal
    * @param {DialogDiffer.Dialog|null} dialogCurrent
-   * @param {DialogDiffer.OnDiffCallback} [onDiff]
+   * @param {function({dialogsResult: DialogDiffer.DialogsResult}): void} [onDiff]
    * @returns {Promise<DialogDiffer.DialogsResult>}
    * @throws {DialogDiffer.Error}
    */
   async differDialog (options, dialogOriginal, dialogCurrent, {onDiff = null} = {}) {
+
     // dialog deleted or added
     if (!dialogOriginal || !dialogCurrent) {
       const dialogsResult = this.createDialogsResult(
@@ -133,8 +163,19 @@ class DifferHandler {
         []
       )
 
+      logger.info(
+        TAG,
+        'differDialog',
+        '[dialog_original_version=%s][dialog_current_version=%s][dialog_id=%s][diff_result=%s]',
+        LOGGER_CONSTANTS.DIALOG_DIFF_NEW_DELETED_LOGGER,
+        dialogsResult.originalVersion,
+        dialogsResult.currentVersion,
+        dialogsResult.dialogId,
+        dialogsResult.result,
+      )
+
       if (onDiff) {
-        onDiff(dialogsResult)
+        onDiff({dialogsResult})
       }
 
       return dialogsResult
@@ -149,8 +190,19 @@ class DifferHandler {
         []
       )
 
+      logger.info(
+        TAG,
+        'differDialog',
+        '[dialog_original_version=%s][dialog_current_version=%s][dialog_id=%s][diff_result=%s]',
+        LOGGER_CONSTANTS.DIALOG_DIFF_ERROR_LOGGER,
+        dialogsResult.originalVersion,
+        dialogsResult.currentVersion,
+        dialogsResult.dialogId,
+        dialogsResult.result,
+      )
+
       if (onDiff) {
-        onDiff(dialogsResult)
+        onDiff({dialogsResult})
       }
 
       return dialogsResult
@@ -161,15 +213,6 @@ class DifferHandler {
 
     // use dialog result from database
     if (dialogResultDb && !options.isForceDiff) {
-      logger.info(
-        TAG,
-        'differDialog',
-        'Using dialogs \'%s\' and \'%s\' diff result from database',
-        LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER,
-        DialogHelper.createUniqueDialogId(dialogOriginal),
-        DialogHelper.createUniqueDialogId(dialogCurrent)
-      )
-
       const dialogsResult = this.createDialogsResult(
         dialogOriginal,
         dialogCurrent,
@@ -177,23 +220,25 @@ class DifferHandler {
         dialogResultDb.differ
       )
 
+      logger.info(
+        TAG,
+        'differDialog',
+        '[dialog_original_version=%s][dialog_current_version=%s][dialog_id=%s][diff_result=%s]',
+        LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER,
+        dialogsResult.originalVersion,
+        dialogsResult.currentVersion,
+        dialogsResult.dialogId,
+        dialogsResult.result,
+      )
+
       if (onDiff) {
-        onDiff(dialogsResult)
+        onDiff({dialogsResult})
       }
 
       return dialogsResult
     }
     // get dialog result from image diff
     else {
-      logger.info(
-        TAG,
-        'differDialog',
-        'Getting dialogs \'%s\' and \'%s\' diff result from image diff',
-        LOGGER_CONSTANTS.DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER,
-        DialogHelper.createUniqueDialogId(dialogOriginal),
-        DialogHelper.createUniqueDialogId(dialogCurrent)
-      )
-
       return this.differDialogWithImageDiff(options, dialogOriginal, dialogCurrent, {onDiff})
     }
   }
@@ -202,7 +247,7 @@ class DifferHandler {
    * @param {DialogDiffer.Options} options
    * @param {DialogDiffer.Dialog|null} dialogOriginal
    * @param {DialogDiffer.Dialog|null} dialogCurrent
-   * @param {DialogDiffer.OnDiffCallback} [onDiff]
+   * @param {function({dialogsResult: DialogDiffer.DialogsResult}): void} [onDiff]
    * @returns {Promise<DialogDiffer.DialogsResult>}
    * @throws {DialogDiffer.Error}
    * @private
@@ -240,11 +285,22 @@ class DifferHandler {
       })
     })
 
+    logger.info(
+      TAG,
+      'differDialogWithImageDiff',
+      '[dialog_original_version=%s][dialog_current_version=%s][dialog_id=%s][diff_result=%s]',
+      LOGGER_CONSTANTS.DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER,
+      dialogsResult.originalVersion,
+      dialogsResult.currentVersion,
+      dialogsResult.dialogId,
+      dialogsResult.result,
+    )
+
     // save dialogs result to database
     await this.databaseHandler.saveDialogsResult(options, dialogOriginal, dialogCurrent, dialogsResult)
 
     if (onDiff) {
-      onDiff(dialogsResult)
+      onDiff({dialogsResult})
     }
 
     return dialogsResult
@@ -252,7 +308,7 @@ class DifferHandler {
 
   /**
    * @param {DialogDiffer.Suite} suite
-   * @param {DialogDiffer.OnDiffCallback} [onDiff]
+   * @param {function({dialogsResult: DialogDiffer.DialogsResult}): void} [onDiff]
    * @returns {Promise<{suiteResult: DialogDiffer.SuiteResult, suiteResultDb: DialogDiffer.Database.SuiteResult}>}
    */
   async differSuite (suite, {onDiff = null} = {}) {

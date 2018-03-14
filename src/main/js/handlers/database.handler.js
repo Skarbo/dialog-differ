@@ -189,10 +189,10 @@ class DatabaseHandler {
    * @return {Promise<Array<Array<DialogDiffer.Database.DialogScreenshot>>>}
    */
   getDialogsScreenshots (dialogs, sizes) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       Promise
         .all(dialogs.map(dialog => this.getDialogScreenshots(dialog, DialogHelper.getDialogSizes(sizes, dialog))))
-        .then(fulfill)
+        .then(resolve)
         .catch(err => reject(ErrorHelper.createError(err, 'Could not get dialog screenshots', ERROR_CONSTANTS.GET_DIALOGS_SCREENSHOTS_DB_ERROR, {dialogs})))
     })
   }
@@ -291,7 +291,7 @@ class DatabaseHandler {
             deleted: 0,
             duration: 0,
             error: 0,
-            dialogs: Math.max((suite.original || []).length, (suite.current || []).length),
+            dialogs: (suite.original || []).length + (suite.current || []).length,
           },
           dialogsResult: []
         })
@@ -318,7 +318,7 @@ class DatabaseHandler {
       }
     }
 
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       this.databaseLayer
         .updateSuiteResult(suiteResult.id, {
           status: suiteResult.status,
@@ -349,7 +349,7 @@ class DatabaseHandler {
               }
             })
         })
-        .then(fulfill)
+        .then(resolve)
         .catch(err => {
           reject(ErrorHelper.createError(err, 'Could not save suite result', ERROR_CONSTANTS.SAVE_SUITE_RESULT_DB_ERROR, {suiteResult}))
         })
@@ -377,7 +377,7 @@ class DatabaseHandler {
 
   /**
    * @param {String} suiteId
-   * @return {Promise<DialogDiffer.Database.SuiteResult@|null>}
+   * @return {Promise<DialogDiffer.Database.SuiteResult|null>}
    */
   getSuiteResult (suiteId) {
     return new Promise((resolve, reject) => {

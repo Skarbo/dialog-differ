@@ -23,6 +23,7 @@ module.exports.prepareSuiteResults = (suite, suiteResultDb = {}) => {
       deleted: 0,
       duration: 0,
       error: 0,
+      dialogs: (suite.original || []).length + (suite.current || []).length
     },
   }
   const resultsObj = {}

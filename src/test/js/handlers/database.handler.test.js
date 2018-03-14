@@ -228,7 +228,10 @@ describe('database handler', () => {
       const suiteOne = {
         options: {
           originalVersion: 1,
-          currentVersion: 2
+          currentVersion: 2,
+          extra: {
+            foo: 'bar'
+          }
         }
       }
       /** @type {DialogDiffer.Suite} */
@@ -282,6 +285,7 @@ describe('database handler', () => {
         databaseHandler.newSuiteResult(suiteTwo),
       ])
         .then(result => {
+          console.log('result', result[0])
           suiteResultOne.id = result[0].id
           suiteResultTwo.id = result[1].id
 
@@ -299,6 +303,7 @@ describe('database handler', () => {
 
           expect(suiteResults[0].options.originalVersion).to.equal(2)
           expect(suiteResults[0].options.currentVersion).to.equal(3)
+          expect(suiteResults[0].options.extra).to.eql({foo: 'bar'})
           expect(suiteResults[1].options.originalVersion).to.equal(1)
           expect(suiteResults[1].options.currentVersion).to.equal(2)
         })

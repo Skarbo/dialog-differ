@@ -14,12 +14,12 @@
     "base64-img": "^1.0.3",
     "bluebird": "latest",
     "extend": "latest",
-    "image-diff": "^1.6.3",
     "lodash-id": "^0.14.0",
+    "looks-same": "^3.3.0",
     "lowdb": "^0.16.2",
-    "puppeteer": "^1.0.0",
+    "puppeteer": "^1.1.1",
     "string-format-js": "^1.0.0",
-    "tmp": "0.0.31"
+    "tmp": "0.0.33"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

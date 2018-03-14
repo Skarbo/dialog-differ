@@ -1,4 +1,6 @@
 {
   "browserTimeout": 5000,
-  "logLevel": "error"
+  "logLevel": "error",
+  "snapDialogsWithHashFromBrowserCollections": 10,
+  "snapDialogsWithHashFromBrowserConcurrency": 3
 }

@@ -10,10 +10,21 @@ const configLib = require('../config.lib')
 
 const LOGGER_CONSTANTS = require('../constants/logger.constants')
 const ERROR_CONSTANTS = require('../constants/error.constants')
-const HASH_DIALOGS_COLLECTIONS = 10
 
 const DialogHelper = require('../helpers/dialog.helper')
 const ErrorHelper = require('../helpers/error.helper')
+
+/**
+ * @callback SnapHandler.OnSnapCallback
+ * @param {Object} obj
+ * @param {String} obj.suiteId
+ * @param {DialogDiffer.Dialog} obj.dialog
+ * @param {ErrorHelper} [obj.err]
+ * @param {Boolean} [obj.isDatabase]
+ * @param {Boolean} [obj.isOriginal]
+ * @param {Boolean} [obj.isCurrent]
+ * @memberOf SnapHandler
+ */
 
 /**
  * @param {String} selector
@@ -128,7 +139,7 @@ class SnapHandler {
 
   /**
    * @param {DialogDiffer.Suite} suite
-   * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {SnapHandler.OnSnapCallback} [onSnap]
    * @return {Promise<DialogDiffer.Suite>}
    */
   async snapSuite (suite, {onSnap} = {}) {
@@ -136,9 +147,9 @@ class SnapHandler {
 
     try {
       // snap original dialogs
-      await this.snapSuiteDialogs(suite.options, suite.original, {onSnap})
+      await this.snapSuiteDialogs(suite.options, suite.original, {onSnap, isOriginal: true})
       // snap current dialogs
-      await this.snapSuiteDialogs(suite.options, suite.current, {onSnap})
+      await this.snapSuiteDialogs(suite.options, suite.current, {onSnap, isCurrent: true})
 
       logger.log(TAG, 'snapSuite', 'Snapped suite', null, suite.id)
       return suite
@@ -151,10 +162,12 @@ class SnapHandler {
   /**
    * @param {DialogDiffer.Options} options
    * @param {Array<DialogDiffer.Dialog>} dialogs
-   * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {SnapHandler.OnSnapCallback} [onSnap]
+   * @param {Boolean} [isOriginal]
+   * @param {Boolean} [isCurrent]
    * @return {Promise<Array<DialogDiffer.Dialog>>}
    */
-  async snapSuiteDialogs (options, dialogs, {onSnap} = {}) {
+  async snapSuiteDialogs (options, dialogs, {onSnap, isOriginal = false, isCurrent = false} = {}) {
     // prepare dialogs screenshots
     dialogs.forEach(dialog => {
       if (!dialog.screenshots) {
@@ -178,11 +191,15 @@ class SnapHandler {
           return this.snapDialogsWithHashFromDatabase(
             par.map(snappedCollectedDialog => snappedCollectedDialog.dialog),
             par.map(snappedCollectedDialog => snappedCollectedDialog.screenshots),
-            {onSnap}
+            {onSnap, isOriginal, isCurrent}
           )
         }
         else {
-          return this.snapDialogFromDatabase(par.dialog, par.screenshots, {onSnap})
+          return this.snapDialogFromDatabase(
+            par.dialog,
+            par.screenshots,
+            {onSnap, isOriginal, isCurrent}
+          )
         }
       }), dialogsCollection.nonSnappedCollection.map(par => {
         // non snapped collection
@@ -190,14 +207,14 @@ class SnapHandler {
           return this.snapDialogsWithHashFromBrowser(
             options,
             par.map(snappedCollectedDialog => snappedCollectedDialog.dialog),
-            {onSnap}
+            {onSnap, isOriginal, isCurrent}
           )
         }
         else {
           return this.snapDialogFromBrowser(
             options,
             par.dialog,
-            {onSnap}
+            {onSnap, isOriginal, isCurrent}
           )
         }
       })))
@@ -220,10 +237,12 @@ class SnapHandler {
   /**
    * @param {DialogDiffer.Options} options
    * @param {DialogDiffer.Dialog} dialog
-   * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {SnapHandler.OnSnapCallback} [onSnap]
+   * @param {Boolean} [isOriginal]
+   * @param {Boolean} [isCurrent]
    * @return {Promise<DialogDiffer.Dialog>}
    */
-  async snapDialog (options, dialog, {onSnap} = {}) {
+  async snapDialog (options, dialog, {onSnap, isOriginal = false, isCurrent = false} = {}) {
     // prepare dialog screenshots
     if (!dialog.screenshots) {
       dialog.screenshots = []
@@ -234,16 +253,16 @@ class SnapHandler {
 
       // use dialog from database if already snapped, and not force new snap
       if (DialogHelper.isDialogSnapped(DialogHelper.getDialogSizes(options.sizes, dialog), dialog, dialogScreenshotsDb) && !options.isForceSnap) {
-        await this.snapDialogFromDatabase(dialog, dialogScreenshotsDb, {onSnap})
+        await this.snapDialogFromDatabase(dialog, dialogScreenshotsDb, {onSnap, isOriginal, isCurrent})
       }
       // snap dialog using browser
       else {
-        await this.snapDialogFromBrowser(options, dialog, {onSnap})
+        await this.snapDialogFromBrowser(options, dialog, {onSnap, isOriginal, isCurrent})
       }
 
       // callback
       if (onSnap) {
-        onSnap(dialog)
+        onSnap({dialog, isOriginal, isCurrent})
       }
 
       return dialog
@@ -251,7 +270,7 @@ class SnapHandler {
     catch (err) {
       // callback
       if (onSnap) {
-        onSnap(dialog, {err})
+        onSnap({dialog, err, isOriginal, isCurrent})
       }
 
       throw err
@@ -261,11 +280,13 @@ class SnapHandler {
   /**
    * @param {DialogDiffer.Dialog} dialog
    * @param {Array<DialogDiffer.Database.DialogScreenshot>} dialogScreenshotsDb
-   * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {SnapHandler.OnSnapCallback} [onSnap]
+   * @param {Boolean} [isOriginal]
+   * @param {Boolean} [isCurrent]
    * @return {Promise<DialogDiffer.Dialog>}
    * @private
    */
-  async snapDialogFromDatabase (dialog, dialogScreenshotsDb, {onSnap} = {}) {
+  async snapDialogFromDatabase (dialog, dialogScreenshotsDb, {onSnap, isOriginal = false, isCurrent = false} = {}) {
     logger.log(TAG, 'snapDialogFromDatabase', 'Snapping dialog \'%s\' from database', null, dialog.id)
 
     try {
@@ -274,11 +295,20 @@ class SnapHandler {
         dialog.screenshots.push(DialogHelper.createDialogScreenshot(dialogScreenshotDb.width, dialogScreenshotDb.height, dialogScreenshotDb.base64))
       })
 
-      logger.info(TAG, 'snapDialogFromDatabase', 'Dialog \'%s\' using \'%d\' screenshots from database', LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER, DialogHelper.createUniqueDialogId(dialog), dialogScreenshotsDb.length)
+      logger.info(
+        TAG,
+        'snapDialogFromDatabase',
+        '[dialog_version=%s][dialog_id=%s][dialog_screenshots=%d]',
+        'Dialog \'%s\' using \'%d\' screenshots from database',
+        LOGGER_CONSTANTS.SCREENSHOTS_FROM_DATABASE_LOGGER,
+        dialog.version,
+        dialog.id,
+        dialogScreenshotsDb.length,
+      )
 
       // callback
       if (onSnap) {
-        onSnap(dialog, {isDatabase: true})
+        onSnap({dialog, isDatabase: true, isOriginal, isCurrent})
       }
 
       return dialog
@@ -286,7 +316,7 @@ class SnapHandler {
     catch (err) {
       // callback
       if (onSnap) {
-        onSnap(dialog, {err, isDatabase: true})
+        onSnap({dialog, err, isDatabase: true, isOriginal, isCurrent})
       }
 
       throw err
@@ -296,19 +326,30 @@ class SnapHandler {
   /**
    * @param {DialogDiffer.Options} options
    * @param {DialogDiffer.Dialog} dialog
-   * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {SnapHandler.OnSnapCallback} [onSnap]
+   * @param {Boolean} [isOriginal]
+   * @param {Boolean} [isCurrent]
    * @return {Promise<DialogDiffer.Dialog>}
    * @private
    */
-  async snapDialogFromBrowser (options, dialog, {onSnap} = {}) {
+  async snapDialogFromBrowser (options, dialog, {onSnap, isOriginal = false, isCurrent = false} = {}) {
     let browser
     let page
 
     try {
-      logger.log(TAG, 'snapDialogFromBrowser', 'Snapping dialog \'%s\' from browser', null, DialogHelper.createUniqueDialogId(dialog))
-
       // get sizes
       const sizes = DialogHelper.getDialogSizes(options.sizes, dialog)
+
+      logger.log(
+        TAG,
+        'snapDialogFromBrowser',
+        '[dialog_version=%s][dialog_id=%s][dialog_url=%s][dialog_sizes=%s]',
+        LOGGER_CONSTANTS.SNAP_DIALOG_WITH_HASH_FROM_BROWSER_LOGGER,
+        dialog.version,
+        dialog.id,
+        dialog.url,
+        sizes.map(({width, height}) => `${width}x${height}`).join(','),
+      )
 
       // create browser
       browser = await puppeteer.launch({
@@ -323,12 +364,12 @@ class SnapHandler {
         logger.warn(
           TAG,
           'snapDialogFromBrowser',
-          'Error in dialog. Message: \'%s\'. Version: \'%s\'. Id: \'%s\'. Url: \'%s\'.',
+          '[dialog_version=%s][dialog_id=%s][dialog_url=%s][error=%s]',
           ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR,
-          msg,
           dialog.version,
           dialog.id,
-          dialog.url
+          dialog.url,
+          msg,
         )
       })
 
@@ -376,19 +417,18 @@ class SnapHandler {
 
       // callback
       if (onSnap) {
-        onSnap(dialog)
+        onSnap({dialog, isOriginal, isCurrent})
       }
     }
     catch (err) {
       const error = ErrorHelper.createError(
         err,
-        'Could not snap dialog from Browser. Version: \'%s\'. Id: \'%s\'. Url: \'%s%s\'.',
+        '[dialog_version=%s][dialog_id=%s][dialog_url=%s][error=%s]',
         ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR,
         dialog.version,
         dialog.id,
         dialog.url,
-        dialog.hash && `#${dialog.hash}` || '',
-        {options}
+        err.message,
       )
 
       dialog.error = {
@@ -402,7 +442,7 @@ class SnapHandler {
 
       // callback
       if (onSnap) {
-        onSnap(dialog, {err: error})
+        onSnap({dialog, err: error, isOriginal, isCurrent})
       }
     }
 
@@ -420,11 +460,13 @@ class SnapHandler {
   /**
    * @param {Array<DialogDiffer.Dialog>} dialogs
    * @param {Array<Array<DialogDiffer.Database.DialogScreenshot>>} dialogsScreenshotsDb
-   * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {SnapHandler.OnSnapCallback} [onSnap]
+   * @param {Boolean} [isOriginal]
+   * @param {Boolean} [isCurrent]
    * @returns {Promise<Array<DialogDiffer.Dialog>>}
    * @private
    */
-  async snapDialogsWithHashFromDatabase (dialogs, dialogsScreenshotsDb, {onSnap}) {
+  async snapDialogsWithHashFromDatabase (dialogs, dialogsScreenshotsDb, {onSnap, isOriginal = false, isCurrent = false}) {
     logger.log(TAG, 'snapDialogsWithHashFromDatabase', 'Snapping %d dialogs with hash from database', null, dialogs.length)
 
     try {
@@ -440,16 +482,61 @@ class SnapHandler {
   /**
    * @param {DialogDiffer.Options} options
    * @param {Array<DialogDiffer.Dialog>} dialogs
-   * @param {DialogDiffer.OnSnapCallback} [onSnap]
+   * @param {SnapHandler.OnSnapCallback} [onSnap]
+   * @param {Boolean} [isOriginal]
+   * @param {Boolean} [isCurrent]
    * @returns {Promise<Array<DialogDiffer.Dialog>>}
    * @private
    */
-  async snapDialogsWithHashFromBrowser (options, dialogs, {onSnap} = {}) {
+  async snapDialogsWithHashFromBrowser (options, dialogs, {onSnap, isOriginal = false, isCurrent = false} = {}) {
     const dialogUrl = dialogs[0].url
     const dialogVersion = dialogs[0].version
+    const dialogSizes = DialogHelper.getDialogSizes(options.sizes, dialogs[0])
+
+    // prepare dialogs
+    dialogs.forEach(dialog => {
+      dialog.screenshots = []
+    })
 
     /** @type {Array<Array<DialogDiffer.Dialog>>} */
-    const dialogsCollections = dialogs.reduce((rows, key, index) => (index % HASH_DIALOGS_COLLECTIONS === 0 ? rows.push([key]) : rows[rows.length - 1].push(key)) && rows, [])
+    const dialogsCollections = this.config.snapDialogsWithHashFromBrowserCollections
+      ? dialogs.reduce((rows, key, index) => (index % this.config.snapDialogsWithHashFromBrowserCollections === 0 ? rows.push([key]) : rows[rows.length - 1].push(key)) && rows, [])
+      : [dialogs]
+
+    /**
+     * @param {Browser} browser
+     * @param {DialogDiffer.Dialog} dialog
+     * @return {Promise<Page>}
+     */
+    const createAndGoToPage = async (browser, dialog) => {
+      // create page
+      const page = await browser.newPage()
+
+      // listen on error
+      page.on('error', msg => {
+        logger.warn(
+          TAG,
+          'snapDialogsWithHashFromBrowser',
+          '[dialog_version=%s][dialog_id=%s][dialog_url=%s#%s][error=%s]',
+          ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR,
+          dialogVersion,
+          dialog.id,
+          dialog.url,
+          dialog.hash,
+          msg
+        )
+      })
+
+      // go to dialog url
+      await page.goto(dialog.url, {
+        timeout: this.config.browserTimeout,
+      })
+
+      // stop CSS animations
+      await page.evaluate(stopCSSAnimationsEvaluate)
+
+      return page
+    }
 
     // snap dialogs collections
     await Promise
@@ -463,7 +550,16 @@ class SnapHandler {
           let page
 
           try {
-            logger.log(TAG, 'snapDialogsWithHashFromBrowser', 'Snapping %d dialogs with hash from browser', null, dialogsCollection.length, dialogsCollection.map(dialog => dialog.id))
+            logger.info(
+              TAG,
+              'snapDialogsWithHashFromBrowser',
+              '[dialog_version=%s][dialogs=%d][dialog_url=%s][dialog_sizes=%s]',
+              LOGGER_CONSTANTS.SNAP_DIALOG_WITH_HASH_FROM_BROWSER_LOGGER,
+              dialogVersion,
+              dialogsCollection.length,
+              dialogUrl,
+              dialogSizes.map(({width, height}) => `${width}x${height}`).join(',')
+            )
 
             // launch browser
             browser = await puppeteer.launch({
@@ -471,30 +567,25 @@ class SnapHandler {
               ...this.config.puppeteerLaunchOptions,
             })
 
-            // create page
-            page = await browser.newPage()
-
-            // listen on error
-            page.on('error', msg => {
-              logger.warn(TAG, 'snapDialogsWithHashFromBrowser', 'Error in dialogs with hash. Message: \'%s\'. Url: \'%s\'. Version: \'%s\'. Last dialog id: \'%s\'.', ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR, msg, dialogUrl, dialogVersion, lastDialog)
-            })
-
-            // go to dialog url
-            await page.goto(dialogUrl, {
-              timeout: this.config.browserTimeout,
-            })
-
-            // stop CSS animations
-            await page.evaluate(stopCSSAnimationsEvaluate)
+            // create and go to page
+            page = await createAndGoToPage(browser, lastDialog)
 
             await Promise.each(dialogsCollection,
               /** @type {DialogDiffer.Dialog} dialog */
               async dialog => {
                 try {
-                  dialog.screenshots = []
                   lastDialog = dialog
 
-                  logger.log(TAG, 'snapDialogsWithHashFromBrowser', 'Dialog \'%s\',  \'%s\'', null, DialogHelper.createUniqueDialogId(dialog), dialog.hash)
+                  logger.info(
+                    TAG,
+                    'snapDialogsWithHashFromBrowser',
+                    '[dialog_version=%s][dialog_id=%s][dialog_url=%s#%s]',
+                    LOGGER_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_LOGGER,
+                    dialogVersion,
+                    dialog.id,
+                    dialogUrl,
+                    dialog.hash,
+                  )
 
                   // get sizes
                   const sizes = DialogHelper.getDialogSizes(options.sizes, dialog)
@@ -538,41 +629,52 @@ class SnapHandler {
 
                   // callback
                   if (onSnap) {
-                    onSnap(dialog)
+                    onSnap({dialog, isOriginal, isCurrent})
                   }
                 }
                 catch (err) {
                   const error = ErrorHelper.createError(
                     err,
-                    'Could not snap dialog \'%s\' version \'%s\' with hash from Browser. Url: \'%s#%s\'. Version: \'%s\'.',
+                    '[dialog_version=%s][dialog_id=%s][dialog_url=%s#%s][error=%s]',
                     ERROR_CONSTANTS.SNAP_DIALOG_WITH_HASH_FROM_BROWSER_ERROR,
-                    lastDialog.id,
                     lastDialog.version,
+                    lastDialog.id,
                     dialogUrl,
-                    lastDialog.hash
+                    lastDialog.hash,
+                    err.message,
                   )
 
                   dialog.error = {
                     code: error.code,
                     message: error.message,
-                    args: error.args,
-                    stack: error.stack,
                   }
 
-                  logger.error(TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, ...error.args, error.stack)
+                  logger.error(TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, error.stack)
 
                   // callback
                   if (onSnap) {
-                    onSnap(dialog, {err: error})
+                    onSnap({dialog, err: error, isOriginal, isCurrent})
                   }
 
-                  // go to dialog url
-                  await page.goto(dialogUrl, {
-                    timeout: this.config.browserTimeout,
-                  })
+                  try {
+                    // close page
+                    await page.close()
 
-                  // stop CSS animations
-                  await page.evaluate(stopCSSAnimationsEvaluate)
+                    // create and go to page
+                    page = await createAndGoToPage(browser, lastDialog)
+                  }
+                  catch (err) {
+                    logger.error(
+                      TAG,
+                      'snapDialogsWithHashFromBrowser',
+                      '[dialog_version=%s][dialog_id=%s][dialog_url=%s][error=could not reload page]',
+                      ERROR_CONSTANTS.SNAP_DIALOG_WITH_HASH_FROM_BROWSER_RELOAD_ERROR,
+                      lastDialog.version,
+                      lastDialog.id,
+                      lastDialog.url,
+                    )
+                    throw err
+                  }
                 }
               }
             )
@@ -580,28 +682,28 @@ class SnapHandler {
           catch (err) {
             const error = ErrorHelper.createError(
               err,
-              'Could not snap dialogs with hash from Browser. Url: \'%s#%s\'. Version: \'%s\'. Id: \'%s\'.',
+              '[dialog_version=%s][dialog_id=%s][dialogs=%d][dialogs_with_error=%d][dialog_url=%s][error=%s]',
               ERROR_CONSTANTS.SNAP_DIALOGS_WITH_HASH_FROM_BROWSER_ERROR,
-              dialogUrl,
-              lastDialog.hash,
               dialogVersion,
-              lastDialog.id
+              lastDialog.id,
+              dialogsCollection.length,
+              dialogsCollection.filter(dialog => !!dialog.error).length,
+              dialogUrl,
+              err.message,
             )
 
-            logger.error(TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, ...error.args, error.stack)
+            logger.error(TAG, 'snapDialogsWithHashFromBrowser', error.message, error.code, error.stack)
 
             dialogsCollection.forEach(dialog => {
-              if (dialog.screenshots && dialog.screenshots.length === 0) {
+              if (!dialog.error && dialog.screenshots.length === 0) {
                 dialog.error = {
                   code: error.code,
                   message: error.message,
-                  args: error.args,
-                  stack: error.stack,
                 }
 
                 // callback
                 if (onSnap) {
-                  onSnap(dialog, {err: error})
+                  onSnap({dialog, err: error, isOriginal, isCurrent})
                 }
               }
             })
@@ -617,7 +719,7 @@ class SnapHandler {
             await browser.close()
           }
         },
-        {concurrency: 3}
+        {concurrency: this.config.snapDialogsWithHashFromBrowserConcurrency}
       )
 
     return dialogs
