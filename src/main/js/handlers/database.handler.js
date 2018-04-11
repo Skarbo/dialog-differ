@@ -107,7 +107,7 @@ class DatabaseHandler {
    * @return {Promise<DialogDiffer.Database.DialogScreenshot>}
    */
   saveDialogScreenshot (dialog, dialogScreenshot) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       this
         .getDialogScreenshot(dialog, dialogScreenshot)
         .then(dialogScreenshotDb => {
@@ -129,7 +129,7 @@ class DatabaseHandler {
               })
           }
         })
-        .then(fulfill)
+        .then(resolve)
         .catch(err => {
           reject(ErrorHelper.createError(err, 'Could not save dialog screenshot', ERROR_CONSTANTS.SAVE_DIALOG_SCREENSHOT_DB_ERROR, {
             dialog,

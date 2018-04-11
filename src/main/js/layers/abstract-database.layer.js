@@ -40,6 +40,10 @@ class AbstractDatabaseLayer {
 
   /**
    * @abstract
+   * @param {String} dialogId
+   * @param {String} dialogVersion
+   * @param {Number} dialogScreenshotHeight
+   * @param {Number} dialogScreenshotWidth
    * @return {Promise<DialogDiffer.Database.DialogScreenshot>}
    */
   getDialogScreenshot ({dialogId, dialogVersion, dialogScreenshotHeight, dialogScreenshotWidth}) {

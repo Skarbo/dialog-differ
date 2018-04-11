@@ -1,8 +1,13 @@
 const chai = require('chai')
+const Promise = require('bluebird')
 
 const expect = chai.expect
 
 const DatabaseHandler = require('../../../main/js/handlers/database.handler')
+const LowDbDatabaseLayer = require('../../../main/js/layers/lowdb-database.layer')
+const MongoDatabaseLayer = require('../../../main/js/layers/mongo-database.layer')
+
+const config = require('../../../main/js/config.lib').getConfig()
 
 /**
  * @param {Array<DialogDiffer.Database.DialogScreenshot>} dialogScreenshotsDb
@@ -28,285 +33,295 @@ function assertDialogScreenshot (dialogScreenshotsDb, dialog, dialogScreenshots)
   }
 }
 
+const layers = [{
+  instance: new LowDbDatabaseLayer(),
+  init: null,
+}, {
+  instance: new MongoDatabaseLayer(),
+  init: config.test.mongoUri,
+}]
+
 describe('database handler', () => {
-  const databaseHandler = new DatabaseHandler()
+  layers.forEach(({instance, init}) => {
+    describe(instance.constructor.name, () => {
+      const databaseHandler = new DatabaseHandler(instance)
 
-  beforeEach(() => {
-    return databaseHandler
-      .clearDB()
-      .then(() => databaseHandler.initDB())
-  })
+      beforeEach(() => {
+        return databaseHandler
+          .initDB(init)
+          // .then(() => databaseHandler.initDB(init))
+          .then(() => databaseHandler.clearDB())
+      })
 
-  describe('DialogScreenshot', () => {
-    it('should save and get dialog screenshot', () => {
-      /** @type {DialogDiffer.Dialog} */
-      const dialog = {
-        id: 'id',
-        version: 'version',
-        screenshots: [{
-          base64: 'base64',
-          height: 1,
-          width: 1,
-        }]
-      }
+      describe('DialogScreenshot', () => {
+        it('should save and get dialog screenshot', () => {
+          /** @type {DialogDiffer.Dialog} */
+          const dialog = {
+            id: 'id',
+            version: 'version',
+            screenshots: [{
+              base64: 'base64',
+              height: 1,
+              width: 1,
+            }]
+          }
 
-      return databaseHandler
-        .saveDialogScreenshot(dialog, dialog.screenshots[0])
-        .then(dialogScreenshotDb => {
-          assertDialogScreenshot([dialogScreenshotDb], dialog, dialog.screenshots)
+          return databaseHandler
+            .saveDialogScreenshot(dialog, dialog.screenshots[0])
+            .then(dialogScreenshotDb => {
+              assertDialogScreenshot([dialogScreenshotDb], dialog, dialog.screenshots)
 
-          return databaseHandler.getDialogScreenshot(dialog, {
-            width: dialog.screenshots[0].width,
-            height: dialog.screenshots[0].height
-          })
+              return databaseHandler.getDialogScreenshot(dialog, {
+                width: dialog.screenshots[0].width,
+                height: dialog.screenshots[0].height
+              })
+            })
+            .then(dialogScreenshotDb => {
+              assertDialogScreenshot([dialogScreenshotDb], dialog, dialog.screenshots)
+            })
         })
-        .then(dialogScreenshotDb => {
-          assertDialogScreenshot([dialogScreenshotDb], dialog, dialog.screenshots)
-        })
-    })
 
-    it('should get dialog screenshots', () => {
-      const sizes = [{width: 1, height: 1}, {width: 2, height: 2}]
+        it('should get dialog screenshots', () => {
+          const sizes = [{width: 1, height: 1}, {width: 2, height: 2}]
 
-      /** @type {DialogDiffer.Dialog} */
-      const dialog = {
-        id: 'id',
-        version: 'version',
-        screenshots: [{
-          base64: 'base64',
-          height: sizes[0].height,
-          width: sizes[0].width,
-        }, {
-          base64: 'base64',
-          height: sizes[1].height,
-          width: sizes[1].width,
-        }]
-      }
-
-      return Promise
-        .all([
-          databaseHandler.saveDialogScreenshot(dialog, dialog.screenshots[0]),
-          databaseHandler.saveDialogScreenshot(dialog, dialog.screenshots[1]),
-        ])
-        .then(() => databaseHandler.getDialogScreenshots(dialog, sizes))
-        .then(dialogScreenshotsDb => {
-          assertDialogScreenshot(dialogScreenshotsDb, dialog, dialog.screenshots)
-        })
-    })
-  })
-
-  describe('DialogsScreenshots', () => {
-    it('should get dialogs screenshots', () => {
-      const sizes = [{width: 1, height: 1}, {width: 2, height: 2}]
-
-      /** @type {DialogDiffer.Dialog} */
-      const dialogOne = {
-        id: 'id',
-        version: '1',
-        screenshots: [{
-          base64: 'base64',
-          height: sizes[0].height,
-          width: sizes[0].width,
-        }, {
-          base64: 'base64',
-          height: sizes[1].height,
-          width: sizes[1].width,
-        }]
-      }
-
-      /** @type {DialogDiffer.Dialog} */
-      const dialogTwo = {
-        id: 'id',
-        version: '2',
-        screenshots: [{
-          base64: 'base64',
-          height: sizes[0].height,
-          width: sizes[0].width,
-        }, {
-          base64: 'base64',
-          height: sizes[1].height,
-          width: sizes[1].width,
-        }]
-      }
-
-      /** @type {DialogDiffer.Dialog} */
-      const dialogThree = {
-        id: 'id',
-        version: '3',
-        screenshots: [{
-          base64: 'base64',
-          height: sizes[0].height,
-          width: sizes[0].width,
-        }, {
-          base64: 'base64',
-          height: sizes[1].height,
-          width: sizes[1].width,
-        }]
-      }
-
-      const dialogs = [dialogOne, dialogTwo]
-
-      return Promise
-        .all([
-          databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[0]),
-          databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[1]),
-          databaseHandler.saveDialogScreenshot(dialogTwo, dialogOne.screenshots[0]),
-          databaseHandler.saveDialogScreenshot(dialogTwo, dialogOne.screenshots[1]),
-          databaseHandler.saveDialogScreenshot(dialogThree, dialogOne.screenshots[0]),
-          databaseHandler.saveDialogScreenshot(dialogThree, dialogOne.screenshots[1]),
-        ])
-        .then(() => databaseHandler.getDialogsScreenshots(dialogs, sizes))
-        .then(dialogsScreenshotsDb => {
-          expect(dialogsScreenshotsDb).to.be.lengthOf(2)
-
-          dialogsScreenshotsDb.forEach((dialogScreenshotsDb, i) => {
-            assertDialogScreenshot(dialogScreenshotsDb, dialogs[i], dialogs[i].screenshots)
-          })
-        })
-    })
-
-    it('should overwrite dialogs screenshots', () => {
-      const sizes = [{width: 1, height: 1}, {width: 2, height: 2}]
-
-      /** @type {DialogDiffer.Dialog} */
-      const dialogOne = {
-        id: 'id',
-        version: '1',
-        screenshots: [{
-          base64: 'base64',
-          height: sizes[0].height,
-          width: sizes[0].width,
-        }, {
-          base64: 'base64',
-          height: sizes[1].height,
-          width: sizes[1].width,
-        }]
-      }
-
-      /** @type {DialogDiffer.Dialog} */
-      const dialogOneSecond = {
-        id: 'id',
-        version: '1',
-        screenshots: [{
-          base64: 'base64_2',
-          height: sizes[0].height,
-          width: sizes[0].width,
-        }, {
-          base64: 'base64_2',
-          height: sizes[1].height,
-          width: sizes[1].width,
-        }]
-      }
-
-      return Promise
-        .all([
-          databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[0]),
-          databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[1]),
-        ])
-        .then(() => databaseHandler.getDialogsScreenshots([dialogOne], sizes))
-        .then(dialogsScreenshotsDb => {
-          expect(dialogsScreenshotsDb).to.be.lengthOf(1)
+          /** @type {DialogDiffer.Dialog} */
+          const dialog = {
+            id: 'id',
+            version: 'version',
+            screenshots: [{
+              base64: 'base64',
+              height: sizes[0].height,
+              width: sizes[0].width,
+            }, {
+              base64: 'base64',
+              height: sizes[1].height,
+              width: sizes[1].width,
+            }]
+          }
 
           return Promise
             .all([
-              databaseHandler.saveDialogScreenshot(dialogOneSecond, dialogOneSecond.screenshots[0]),
-              databaseHandler.saveDialogScreenshot(dialogOneSecond, dialogOneSecond.screenshots[1]),
+              databaseHandler.saveDialogScreenshot(dialog, dialog.screenshots[0]),
+              databaseHandler.saveDialogScreenshot(dialog, dialog.screenshots[1]),
             ])
+            .then(() => databaseHandler.getDialogScreenshots(dialog, sizes))
+            .then(dialogScreenshotsDb => {
+              assertDialogScreenshot(dialogScreenshotsDb, dialog, dialog.screenshots)
+            })
         })
-        .then(() => databaseHandler.getDialogsScreenshots([dialogOneSecond], sizes))
-        .then((dialogsScreenshotsDb) => {
-          expect(dialogsScreenshotsDb).to.be.lengthOf(1)
+      })
 
-          assertDialogScreenshot(dialogsScreenshotsDb[0], dialogOneSecond, dialogOneSecond.screenshots)
+      describe('DialogsScreenshots', () => {
+        it('should get dialogs screenshots', () => {
+          const sizes = [{width: 1, height: 1}, {width: 2, height: 2}]
+
+          /** @type {DialogDiffer.Dialog} */
+          const dialogOne = {
+            id: 'id',
+            version: '1',
+            screenshots: [{
+              base64: 'base64',
+              height: sizes[0].height,
+              width: sizes[0].width,
+            }, {
+              base64: 'base64',
+              height: sizes[1].height,
+              width: sizes[1].width,
+            }]
+          }
+
+          /** @type {DialogDiffer.Dialog} */
+          const dialogTwo = {
+            id: 'id',
+            version: '2',
+            screenshots: [{
+              base64: 'base64',
+              height: sizes[0].height,
+              width: sizes[0].width,
+            }, {
+              base64: 'base64',
+              height: sizes[1].height,
+              width: sizes[1].width,
+            }]
+          }
+
+          /** @type {DialogDiffer.Dialog} */
+          const dialogThree = {
+            id: 'id',
+            version: '3',
+            screenshots: [{
+              base64: 'base64',
+              height: sizes[0].height,
+              width: sizes[0].width,
+            }, {
+              base64: 'base64',
+              height: sizes[1].height,
+              width: sizes[1].width,
+            }]
+          }
+
+          const dialogs = [dialogOne, dialogTwo]
+
+          return Promise
+            .all([
+              databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[0]),
+              databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[1]),
+              databaseHandler.saveDialogScreenshot(dialogTwo, dialogOne.screenshots[0]),
+              databaseHandler.saveDialogScreenshot(dialogTwo, dialogOne.screenshots[1]),
+              databaseHandler.saveDialogScreenshot(dialogThree, dialogOne.screenshots[0]),
+              databaseHandler.saveDialogScreenshot(dialogThree, dialogOne.screenshots[1]),
+            ])
+            .then(() => databaseHandler.getDialogsScreenshots(dialogs, sizes))
+            .then(dialogsScreenshotsDb => {
+              expect(dialogsScreenshotsDb).to.be.lengthOf(2)
+              dialogsScreenshotsDb.forEach((dialogScreenshotsDb, i) => {
+                assertDialogScreenshot(dialogScreenshotsDb, dialogs[i], dialogs[i].screenshots)
+              })
+            })
         })
-    })
-  })
 
-  describe('SuiteResult', () => {
-    it('should init, save, and should get suite results', () => {
-      /** @type {DialogDiffer.Suite} */
-      const suiteOne = {
-        options: {
-          originalVersion: 1,
-          currentVersion: 2,
-          extra: {
-            foo: 'bar'
+        it('should overwrite dialogs screenshots', () => {
+          const sizes = [{width: 1, height: 1}, {width: 2, height: 2}]
+
+          /** @type {DialogDiffer.Dialog} */
+          const dialogOne = {
+            id: 'id',
+            version: '1',
+            screenshots: [{
+              base64: 'base64',
+              height: sizes[0].height,
+              width: sizes[0].width,
+            }, {
+              base64: 'base64',
+              height: sizes[1].height,
+              width: sizes[1].width,
+            }]
           }
-        }
-      }
-      /** @type {DialogDiffer.Suite} */
-      const suiteTwo = {
-        options: {
-          originalVersion: 2,
-          currentVersion: 3
-        }
-      }
 
-      /** @type {DialogDiffer.SuiteResult} */
-      const suiteResultOne = {
-        options: suiteOne.options,
-        results: [
-          {
-            dialogId: 1,
-            originalVersion: suiteOne.options.originalVersion,
-            currentVersion: suiteOne.options.currentVersion,
-            result: 'result'
-          },
-          {
-            dialogId: 2,
-            originalVersion: suiteOne.options.originalVersion,
-            currentVersion: suiteOne.options.currentVersion,
-            result: 'result2'
+          /** @type {DialogDiffer.Dialog} */
+          const dialogOneSecond = {
+            id: 'id',
+            version: '1',
+            screenshots: [{
+              base64: 'base64_2',
+              height: sizes[0].height,
+              width: sizes[0].width,
+            }, {
+              base64: 'base64_2',
+              height: sizes[1].height,
+              width: sizes[1].width,
+            }]
           }
-        ]
-      }
 
-      /** @type {DialogDiffer.SuiteResult} */
-      const suiteResultTwo = {
-        options: suiteTwo.options,
-        results: [
-          {
-            dialogId: 1,
-            originalVersion: suiteTwo.options.originalVersion,
-            currentVersion: suiteTwo.options.currentVersion,
-            result: 'result'
-          },
-          {
-            dialogId: 2,
-            originalVersion: suiteTwo.options.originalVersion,
-            currentVersion: suiteTwo.options.currentVersion,
-            result: 'result2'
+          return Promise
+            .all([
+              databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[0]),
+              databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[1]),
+            ])
+            .then(() => databaseHandler.getDialogsScreenshots([dialogOne], sizes))
+            .then(dialogsScreenshotsDb => {
+              expect(dialogsScreenshotsDb).to.be.lengthOf(1)
+
+              return Promise
+                .all([
+                  databaseHandler.saveDialogScreenshot(dialogOneSecond, dialogOneSecond.screenshots[0]),
+                  databaseHandler.saveDialogScreenshot(dialogOneSecond, dialogOneSecond.screenshots[1]),
+                ])
+            })
+            .then(() => databaseHandler.getDialogsScreenshots([dialogOneSecond], sizes))
+            .then((dialogsScreenshotsDb) => {
+              expect(dialogsScreenshotsDb).to.be.lengthOf(1)
+              assertDialogScreenshot(dialogsScreenshotsDb[0], dialogOneSecond, dialogOneSecond.screenshots)
+            })
+        })
+      })
+
+      describe('SuiteResult', () => {
+        it('should init, save, and should get suite results', () => {
+          /** @type {DialogDiffer.Suite} */
+          const suiteOne = {
+            options: {
+              originalVersion: 1,
+              currentVersion: 2,
+              extra: {
+                foo: 'bar'
+              }
+            }
           }
-        ]
-      }
+          /** @type {DialogDiffer.Suite} */
+          const suiteTwo = {
+            options: {
+              originalVersion: 2,
+              currentVersion: 3
+            }
+          }
 
-      return Promise.all([
-        databaseHandler.newSuiteResult(suiteOne),
-        databaseHandler.newSuiteResult(suiteTwo),
-      ])
-        .then(result => {
-          console.log('result', result[0])
-          suiteResultOne.id = result[0].id
-          suiteResultTwo.id = result[1].id
+          /** @type {DialogDiffer.SuiteResult} */
+          const suiteResultOne = {
+            options: suiteOne.options,
+            results: [
+              {
+                dialogId: 1,
+                originalVersion: suiteOne.options.originalVersion,
+                currentVersion: suiteOne.options.currentVersion,
+                result: 'result'
+              },
+              {
+                dialogId: 2,
+                originalVersion: suiteOne.options.originalVersion,
+                currentVersion: suiteOne.options.currentVersion,
+                result: 'result2'
+              }
+            ]
+          }
+
+          /** @type {DialogDiffer.SuiteResult} */
+          const suiteResultTwo = {
+            options: suiteTwo.options,
+            results: [
+              {
+                dialogId: 1,
+                originalVersion: suiteTwo.options.originalVersion,
+                currentVersion: suiteTwo.options.currentVersion,
+                result: 'result'
+              },
+              {
+                dialogId: 2,
+                originalVersion: suiteTwo.options.originalVersion,
+                currentVersion: suiteTwo.options.currentVersion,
+                result: 'result2'
+              }
+            ]
+          }
 
           return Promise.all([
-            databaseHandler.saveSuiteResult(suiteResultOne),
-            databaseHandler.saveSuiteResult(suiteResultTwo),
+            databaseHandler.newSuiteResult(suiteOne),
+            Promise.delay(1).then(() => databaseHandler.newSuiteResult(suiteTwo)), // add delay
           ])
-        })
-        .then(() => {
-          return databaseHandler.getLastSuiteResults()
-        })
-        .then(suiteResults => {
-          expect(suiteResults).to.be.an('array')
-          expect(suiteResults).to.be.lengthOf(2)
+            .then(result => {
+              suiteResultOne.id = result[0].id
+              suiteResultTwo.id = result[1].id
 
-          expect(suiteResults[0].options.originalVersion).to.equal(2)
-          expect(suiteResults[0].options.currentVersion).to.equal(3)
-          expect(suiteResults[0].options.extra).to.eql({foo: 'bar'})
-          expect(suiteResults[1].options.originalVersion).to.equal(1)
-          expect(suiteResults[1].options.currentVersion).to.equal(2)
+              return Promise.all([
+                databaseHandler.saveSuiteResult(suiteResultOne),
+                databaseHandler.saveSuiteResult(suiteResultTwo),
+              ])
+            })
+            .then(() => {
+              return databaseHandler.getLastSuiteResults()
+            })
+            .then(suiteResults => {
+              expect(suiteResults).to.be.an('array')
+              expect(suiteResults).to.be.lengthOf(2)
+
+              expect(suiteResults[0].options.originalVersion).to.equal(2)
+              expect(suiteResults[0].options.currentVersion).to.equal(3)
+              expect(suiteResults[1].options.originalVersion).to.equal(1)
+              expect(suiteResults[1].options.currentVersion).to.equal(2)
+              expect(suiteResults[1].options.extra).to.eql({foo: 'bar'})
+            })
         })
+      })
     })
   })
 })

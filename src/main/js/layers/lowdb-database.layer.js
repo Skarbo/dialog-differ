@@ -12,7 +12,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @param {String} [dbFile] Uses in-memory if not given
    */
   initDB (dbFile = null) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         if (!db) {
           db = lowDB(dbFile)
@@ -28,7 +28,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
           })
           .write()
 
-        fulfill()
+        resolve()
       }
       catch (err) {
         reject(err)
@@ -38,7 +38,11 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
 
   clearDB () {
     if (db) {
-      db.setState({})
+      db.setState({
+        [DIALOG_SCREENSHOTS_DB]: [],
+        [DIALOG_DIFFS_RESULT_DB]: [],
+        [SUITE_RESULT_DB]: [],
+      })
     }
     return Promise.resolve()
   }
@@ -99,7 +103,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @return {Promise<Array<DialogDiffer.Database.DialogScreenshot>>}
    */
   getDialogScreenshots ({dialogId, dialogVersion, sizes}) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const dialogScreenshotDb = db
           .get(DIALOG_SCREENSHOTS_DB)
@@ -110,7 +114,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
           })
           .value()
 
-        fulfill(dialogScreenshotDb)
+        resolve(dialogScreenshotDb)
       }
       catch (err) {
         reject(err)
@@ -219,7 +223,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @returns {Promise<DialogDiffer.Database.DialogsResult>}
    */
   getDialogsResult ({options, dialogId, originalVersion, currentVersion}) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const dialogsDiffResultDb = db
           .get(DIALOG_DIFFS_RESULT_DB)
@@ -231,7 +235,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
           })
           .value()
 
-        fulfill(dialogsDiffResultDb)
+        resolve(dialogsDiffResultDb)
       }
       catch (err) {
         reject(err)
@@ -244,14 +248,14 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @returns {Promise<DialogDiffer.Database.DialogsResult>}
    */
   newDialogsResult (dialogsResult) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const dialogsResultDb = db
           .get(DIALOG_DIFFS_RESULT_DB)
           .insert(dialogsResult)
           .write()
 
-        fulfill(dialogsResultDb)
+        resolve(dialogsResultDb)
       }
       catch (err) {
         reject(err)
@@ -287,7 +291,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @return {Promise<Array<DialogDiffer.Database.SuiteResult>>}
    */
   getLastSuiteResults () {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const suiteResultsDb = db
           .get(SUITE_RESULT_DB)
@@ -295,7 +299,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
           .reverse()
           .value()
 
-        fulfill(suiteResultsDb)
+        resolve(suiteResultsDb)
       }
       catch (err) {
         reject(err)
@@ -308,14 +312,14 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @return {Promise<DialogDiffer.Database.SuiteResult>}
    */
   newSuiteResult (suiteResult) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const suiteResultDb = db
           .get(SUITE_RESULT_DB)
           .insert(suiteResult)
           .write()
 
-        fulfill(suiteResultDb)
+        resolve(suiteResultDb)
       }
       catch (err) {
         reject(err)
@@ -367,5 +371,4 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
   }
 }
 
-module
-  .exports = LowDbDatabaseLayer
+module.exports = LowDbDatabaseLayer

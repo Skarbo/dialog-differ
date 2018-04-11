@@ -17,6 +17,7 @@
     "lodash-id": "^0.14.0",
     "looks-same": "^3.3.0",
     "lowdb": "^0.16.2",
+    "mongoose": "^5.0.13",
     "puppeteer": "^1.1.1",
     "string-format-js": "^1.0.0",
     "tmp": "0.0.33"

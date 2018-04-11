@@ -1,5 +1,5 @@
 const extend = require('extend')
-const defaultConfig = require('../../../config')
+const defaultConfig = require('../../../config.json')
 
 /**
  * @param {DialogDiffer.Config} [config]

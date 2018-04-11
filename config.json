@@ -4,5 +4,8 @@
   "snapDialogsWithHashFromBrowserCollections": 10,
   "snapDialogsWithHashFromBrowserConcurrency": 3,
   "diffHighlightColor": "#ff0000",
-  "diffTolerance": 2.3
+  "diffTolerance": 2.3,
+  "test": {
+    "mongoUri": "mongodb://localhost:27017/dialogDifferTest"
+  }
 }

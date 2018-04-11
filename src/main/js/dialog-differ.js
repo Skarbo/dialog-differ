@@ -7,6 +7,8 @@
  * @property {Number} [snapDialogsWithHashFromBrowserConcurrency] Number of hash dialogs with has to run at same time
  * @property {Number} [diffHighlightColor=#ff0000] Diff highlight color, default red
  * @property {Number} [diffTolerance=2.3] Diff tolerance, see {@link https://github.com/gemini-testing/looks-same|looks-same} library
+ * @property {Object} [test]
+ * @property {String} [test.mongoUri] Mongo DB test uri
  * @memberOf DialogDiffer
  */
 
