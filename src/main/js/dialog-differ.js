@@ -160,6 +160,8 @@ process.setMaxListeners(0) // needed for puppeteer
 const TAG = 'DialogDiffer'
 
 const DatabaseHandler = require('./handlers/database.handler')
+const LowDbDatabaseLayer = require('./layers/lowdb-database.layer')
+const MongoDbDatabaseLayer = require('./layers/mongodb-database.layer')
 const SnapHandler = require('./handlers/snap.handler')
 const DifferHandler = require('./handlers/differ.handler')
 const logger = require('./logger')
@@ -215,6 +217,14 @@ class DialogDiffer {
 
   static get LOGGER_CONSTANTS () {
     return LOGGER_CONSTANTS
+  }
+
+  static get LowDbDatabaseLayer () {
+    return LowDbDatabaseLayer
+  }
+
+  static get MongoDbDatabaseLayer () {
+    return MongoDbDatabaseLayer
   }
 
   /**

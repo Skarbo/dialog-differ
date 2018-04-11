@@ -73,7 +73,7 @@ const SuiteResultModel = mongoose.model(SUITE_RESULT_DB, new mongoose.Schema(
 
 let db = null
 
-class MongoDatabaseLayer extends AbstractDatabaseLayer {
+class MongoDbDatabaseLayer extends AbstractDatabaseLayer {
   initDB (uri) {
     return mongoose
       .connect(uri)
@@ -228,4 +228,4 @@ class MongoDatabaseLayer extends AbstractDatabaseLayer {
   }
 }
 
-module.exports = MongoDatabaseLayer
+module.exports = MongoDbDatabaseLayer

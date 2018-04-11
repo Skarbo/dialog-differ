@@ -5,7 +5,7 @@ const expect = chai.expect
 
 const DatabaseHandler = require('../../../main/js/handlers/database.handler')
 const LowDbDatabaseLayer = require('../../../main/js/layers/lowdb-database.layer')
-const MongoDatabaseLayer = require('../../../main/js/layers/mongo-database.layer')
+const MongoDbDatabaseLayer = require('../../../main/js/layers/mongodb-database.layer')
 
 const config = require('../../../main/js/config.lib').getConfig()
 
@@ -37,7 +37,7 @@ const layers = [{
   instance: new LowDbDatabaseLayer(),
   init: null,
 }, {
-  instance: new MongoDatabaseLayer(),
+  instance: new MongoDbDatabaseLayer(),
   init: config.test.mongoUri,
 }]
 
