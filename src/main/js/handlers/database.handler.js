@@ -36,8 +36,6 @@ const ErrorHelper = require('../helpers/error.helper')
  * @property {String} dialogId
  * @property {String} originalVersion
  * @property {String} currentVersion
- * @property {{version: String, id: String, url: String, hash: String, options: DialogDiffer.Options}} original
- * @property {{version: String, id: String, url: String, hash: String, options: DialogDiffer.Options}} current
  * @property {String} result
  * @property {Array<DialogDiffer.DialogResultDiff>} differ
  * @property {{code: String, message: String}|null} originalError
@@ -100,6 +98,10 @@ class DatabaseHandler {
   isInitialized () {
     return this.databaseLayer ? this.databaseLayer.isInitialized() : false
   }
+
+  /*
+   * DIALOG SCREENSHOT
+   */
 
   /**
    * @param {DialogDiffer.Dialog} dialog
@@ -212,14 +214,16 @@ class DatabaseHandler {
     })
   }
 
+  /*
+   * DIALOGS RESULT
+   */
+
   /**
    * @param {DialogDiffer.Options} options
-   * @param {DialogDiffer.Dialog} dialogOriginal
-   * @param {DialogDiffer.Dialog} dialogCurrent
    * @param {DialogDiffer.DialogsResult} dialogsResult
    * @returns {Promise<{dialogsResult: DialogDiffer.DialogsResult, dialogsResultDb: DialogDiffer.Database.DialogsResult}>}
    */
-  saveDialogsResult (options, dialogOriginal, dialogCurrent, dialogsResult) {
+  saveDialogsResult ({options, dialogsResult}) {
     return new Promise((resolve, reject) => {
       this.databaseLayer
         .newDialogsResult({
@@ -231,14 +235,12 @@ class DatabaseHandler {
           differ: dialogsResult.differ,
         })
         .then(dialogsResultDb => {
-          resolve({dialogsResult: dialogsResult, dialogResultDb: dialogsResultDb})
+          resolve({dialogsResult: dialogsResult, dialogsResultDb: dialogsResultDb})
         })
         .catch(err => {
           reject(ErrorHelper.createError(err, 'Could not save dialogs diff result', ERROR_CONSTANTS.SAVE_DIALOGS_DIFF_RESULT_DB_ERROR, {
             options,
-            dialogOriginal,
-            dialogCurrent,
-            dialogsResult
+            dialogsResult,
           }))
         })
     })
@@ -251,7 +253,7 @@ class DatabaseHandler {
    * @param {String} currentVersion
    * @returns {Promise<DialogDiffer.Database.DialogsResult>}
    */
-  getDialogsResult (options, dialogId, originalVersion, currentVersion) {
+  getDialogsResult ({options, dialogId, originalVersion, currentVersion}) {
     return new Promise((resolve, reject) => {
       this.databaseLayer
         .getDialogsResult({
@@ -271,6 +273,10 @@ class DatabaseHandler {
         })
     })
   }
+
+  /*
+   * SUITE RESULT
+   */
 
   /**
    * @param {DialogDiffer.Suite} suite

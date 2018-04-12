@@ -113,7 +113,12 @@ describe('differ handler', () => {
           expect(dialogResult.differ[1].base64).to.be.an('string')
           expect(dialogResult.differ[1].result).to.equal(DIFFER_CONSTANTS.CHANGED_DIFFER_RESULT)
 
-          return databaseHandler.getDialogsResult(options, dialogOriginal.id, dialogOriginal.version, dialogCurrent.version)
+          return databaseHandler.getDialogsResult({
+            options,
+            dialogId: dialogOriginal.id,
+            originalVersion: dialogOriginal.version,
+            currentVersion: dialogCurrent.version
+          })
         })
         .then(dialogsResultDb => {
           expect(dialogsResultDb).to.be.an('object')
@@ -173,7 +178,12 @@ describe('differ handler', () => {
           expect(logger.getCollections({code: LOGGER_CONSTANTS.DIALOG_DIFF_FROM_IMAGE_DIFF_LOGGER})).to.have.lengthOf(1)
           expect(logger.getCollections({code: LOGGER_CONSTANTS.DIALOG_DIFF_FROM_DATABASE_LOGGER})).to.have.lengthOf(0)
 
-          return databaseHandler.getDialogsResult(options, dialogOriginal.id, dialogOriginal.version, dialogCurrent.version)
+          return databaseHandler.getDialogsResult({
+            options,
+            dialogId: dialogOriginal.id,
+            originalVersion: dialogOriginal.version,
+            currentVersion: dialogCurrent.version
+          })
         })
         .then(dialogsResultDb => {
           expect(dialogsResultDb).to.be.an('object')

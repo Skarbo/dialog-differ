@@ -5,7 +5,16 @@ const DIALOG_SCREENSHOTS_DB = 'dialog_screenshots'
 const DIALOG_DIFFS_RESULT_DB = 'dialog_diffs_result'
 const SUITE_RESULT_DB = 'suite_result'
 
-const DialogScreenshotModel = mongoose.model(DIALOG_SCREENSHOTS_DB, new mongoose.Schema(
+const toDataMethod = function () {
+  const obj = this.toObject()
+
+  obj.id = String(obj._id)
+  delete obj._id
+
+  return obj
+}
+
+const dialogScreenshotModelSchema = new mongoose.Schema(
   {
     dialogId: String,
     dialogVersion: String,
@@ -16,13 +25,18 @@ const DialogScreenshotModel = mongoose.model(DIALOG_SCREENSHOTS_DB, new mongoose
   {
     timestamps: true
   },
-))
+)
 
-const DialogDiffsResultModel = mongoose.model(DIALOG_DIFFS_RESULT_DB, new mongoose.Schema(
+dialogScreenshotModelSchema.methods.toData = toDataMethod
+
+const DialogScreenshotModel = mongoose.model(DIALOG_SCREENSHOTS_DB, dialogScreenshotModelSchema)
+
+let dialogDiffsResultModelSchema = new mongoose.Schema(
   {
     dialogId: String,
     originalVersion: String,
     currentVersion: String,
+    options: String,
     original: {
       version: String,
       id: String,
@@ -47,29 +61,29 @@ const DialogDiffsResultModel = mongoose.model(DIALOG_DIFFS_RESULT_DB, new mongoo
   {
     timestamps: true
   },
-))
+)
 
-const SuiteResultModel = mongoose.model(SUITE_RESULT_DB, new mongoose.Schema(
+dialogDiffsResultModelSchema.methods.toData = toDataMethod
+
+const DialogDiffsResultModel = mongoose.model(DIALOG_DIFFS_RESULT_DB, dialogDiffsResultModelSchema)
+
+const suiteResultModelSchema = new mongoose.Schema(
   {
     status: String,
     errorCode: String,
     timestamp: Number,
     options: Object,
     stats: Object,
-    result: [
-      {
-        dialogId: String,
-        originalVersion: String,
-        currentVersion: String,
-        result: String,
-        error: Object,
-      }
-    ],
+    results: Array,
   },
   {
     timestamps: true
   },
-))
+)
+
+suiteResultModelSchema.methods.toData = toDataMethod
+
+const SuiteResultModel = mongoose.model(SUITE_RESULT_DB, suiteResultModelSchema)
 
 let db = null
 
@@ -119,7 +133,7 @@ class MongoDbDatabaseLayer extends AbstractDatabaseLayer {
         height: dialogScreenshotHeight,
         width: dialogScreenshotWidth,
       })
-      .exec()
+      .then(res => res && res.toData() || res)
   }
 
   /**
@@ -137,7 +151,7 @@ class MongoDbDatabaseLayer extends AbstractDatabaseLayer {
       .sort({
         width: 1
       })
-      .exec()
+      .then(res => res.map(par => par.toData()))
   }
 
   /**
@@ -163,7 +177,7 @@ class MongoDbDatabaseLayer extends AbstractDatabaseLayer {
         width: dialogScreenshotWidth,
         base64: dialogScreenshotBase64,
       }
-    )
+    ).then(res => res && res.toData() || res)
   }
 
   updateDialogScreenshot ({
@@ -171,9 +185,16 @@ class MongoDbDatabaseLayer extends AbstractDatabaseLayer {
     dialogScreenshotBase64,
   }) {
     return DialogScreenshotModel
-      .findByIdAndUpdate(dialogScreenshotId, {
-        base64: dialogScreenshotBase64,
-      })
+      .findByIdAndUpdate(
+        dialogScreenshotId, {
+          '$set': {
+            base64: dialogScreenshotBase64,
+          },
+        },
+        {
+          new: true
+        },
+      ).then(res => res && res.toData() || res)
   }
 
   deleteDialogsScreenshots (dialogVersion) {
@@ -187,40 +208,47 @@ class MongoDbDatabaseLayer extends AbstractDatabaseLayer {
    */
 
   newSuiteResult (suiteResult) {
-    return SuiteResultModel.create(suiteResult)
+    return SuiteResultModel.create(suiteResult).then(res => res && res.toData() || res)
   }
 
   updateSuiteResult (suiteResultId, suiteResult) {
-    return SuiteResultModel.findByIdAndUpdate(suiteResultId, suiteResult)
-  }
-
-  getDialogsResult ({options, dialogId, originalVersion, currentVersion}) {
-    return SuiteResultModel.find({
-      dialogId: dialogId,
-      originalVersion: originalVersion,
-      currentVersion: currentVersion,
-      options: options,
-    })
+    return SuiteResultModel.findByIdAndUpdate(suiteResultId, {'$set': suiteResult}, {new: true}).then(res => res && res.toData() || res)
   }
 
   getLastSuiteResults () {
-    return SuiteResultModel.find().sort({createdAt: -1})
+    return SuiteResultModel.find().sort({createdAt: -1}).then(res => res.map(par => par.toData()))
   }
 
   getSuiteResult (suiteId) {
-    return SuiteResultModel.findById(suiteId)
+    return SuiteResultModel.findById(suiteId).then(res => res && res.toData() || res)
   }
 
   /*
    * DIALOGS RESULT
    */
 
-  newDialogsResult (dialogsResult) {
-    return DialogDiffsResultModel.create(dialogsResult)
+  /**
+   * @param {String} options
+   * @param {String} dialogId
+   * @param {String} originalVersion
+   * @param {String} currentVersion
+   * @returns {Promise<DialogDiffer.Database.DialogsResult>}
+   */
+  getDialogsResult ({options, dialogId, originalVersion, currentVersion}) {
+    return DialogDiffsResultModel.findOne({
+      dialogId: dialogId,
+      originalVersion: originalVersion,
+      currentVersion: currentVersion,
+      options: options,
+    }).then(res => res && res.toData() || res)
   }
 
-  getDialogScreenshotFromId (dialogScreenshotId) {
-    return DialogDiffsResultModel.findbyId(dialogScreenshotId)
+  /**
+   * @param {DialogDiffer.Database.DialogsResult} dialogsResult
+   * @returns {Promise<DialogDiffer.Database.DialogsResult>}
+   */
+  newDialogsResult (dialogsResult) {
+    return DialogDiffsResultModel.create(dialogsResult).then(res => res && res.toData() || res)
   }
 
   deleteSuiteResult (suiteId) {

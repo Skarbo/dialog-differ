@@ -272,14 +272,14 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @return {Promise<DialogDiffer.Database.SuiteResult|null>}
    */
   getSuiteResult (suiteId) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const suiteResultsDb = db
           .get(SUITE_RESULT_DB)
           .find({id: suiteId})
           .value()
 
-        fulfill(suiteResultsDb)
+        resolve(suiteResultsDb || null)
       }
       catch (err) {
         reject(err)
@@ -333,7 +333,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @return {Promise<DialogDiffer.Database.SuiteResult>}
    */
   updateSuiteResult (suiteResultId, suiteResult) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const suiteResultDb = db
           .get(SUITE_RESULT_DB)
@@ -341,7 +341,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
           .assign(suiteResult)
           .write()
 
-        fulfill(suiteResultDb)
+        resolve(suiteResultDb)
       }
       catch (err) {
         reject(err)

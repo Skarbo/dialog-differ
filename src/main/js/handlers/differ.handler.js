@@ -219,7 +219,12 @@ class DifferHandler {
     }
 
     // get dialog result from database
-    const dialogResultDb = await this.databaseHandler.getDialogsResult(options, dialogOriginal.id, dialogOriginal.version, dialogCurrent.version)
+    const dialogResultDb = await this.databaseHandler.getDialogsResult({
+      options,
+      dialogId: dialogOriginal.id,
+      originalVersion: dialogOriginal.version,
+      currentVersion: dialogCurrent.version
+    })
 
     // use dialog result from database
     if (dialogResultDb && !options.isForceDiff) {
@@ -307,7 +312,7 @@ class DifferHandler {
     )
 
     // save dialogs result to database
-    await this.databaseHandler.saveDialogsResult(options, dialogOriginal, dialogCurrent, dialogsResult)
+    await this.databaseHandler.saveDialogsResult({options, dialogsResult})
 
     if (onDiff) {
       onDiff({dialogsResult})

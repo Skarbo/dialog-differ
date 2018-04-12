@@ -53,6 +53,10 @@ describe('database handler', () => {
           .then(() => databaseHandler.clearDB())
       })
 
+      /*
+       * DIALOG SCREENSHOT
+       */
+
       describe('DialogScreenshot', () => {
         it('should save and get dialog screenshot', () => {
           /** @type {DialogDiffer.Dialog} */
@@ -78,6 +82,37 @@ describe('database handler', () => {
             })
             .then(dialogScreenshotDb => {
               assertDialogScreenshot([dialogScreenshotDb], dialog, dialog.screenshots)
+            })
+        })
+
+        it('should save, overwrite and get dialog screenshot', () => {
+          const originalScreenshot = {
+            base64: 'base64',
+            height: 1,
+            width: 1,
+          }
+          const overwriteScreenshot = {...originalScreenshot, base64: 'base64_2'}
+
+          /** @type {DialogDiffer.Dialog} */
+          const dialog = {
+            id: 'id',
+            version: 'version',
+            screenshots: [originalScreenshot]
+          }
+
+          return databaseHandler
+            .saveDialogScreenshot(dialog, dialog.screenshots[0])
+            .then(dialogScreenshotDb => {
+              assertDialogScreenshot([dialogScreenshotDb], dialog, dialog.screenshots)
+
+              return databaseHandler.getDialogScreenshot(dialog, {
+                width: dialog.screenshots[0].width,
+                height: dialog.screenshots[0].height
+              })
+            })
+            .then(() => databaseHandler.saveDialogScreenshot(dialog, overwriteScreenshot))
+            .then(dialogScreenshotDb => {
+              assertDialogScreenshot([dialogScreenshotDb], dialog, [overwriteScreenshot])
             })
         })
 
@@ -110,6 +145,10 @@ describe('database handler', () => {
             })
         })
       })
+
+      /*
+       * DIALOGS SCREENSHOTS
+       */
 
       describe('DialogsScreenshots', () => {
         it('should get dialogs screenshots', () => {
@@ -234,10 +273,77 @@ describe('database handler', () => {
               assertDialogScreenshot(dialogsScreenshotsDb[0], dialogOneSecond, dialogOneSecond.screenshots)
             })
         })
+
+        it('should delete dialogs screenshots', () => {
+          /** @type {DialogDiffer.Dialog} */
+          const dialogOne = {
+            id: '1',
+            version: '1',
+            screenshots: [{
+              base64: 'base64',
+              height: 1,
+              width: 1,
+            }]
+          }
+
+          /** @type {DialogDiffer.Dialog} */
+          const dialogTwo = {
+            id: '2',
+            version: '1',
+            screenshots: [{
+              base64: 'base64',
+              height: 1,
+              width: 1,
+            }]
+          }
+
+          /** @type {DialogDiffer.Dialog} */
+          const dialogThree = {
+            id: '3',
+            version: '2',
+            screenshots: [{
+              base64: 'base64',
+              height: 1,
+              width: 1,
+            }]
+          }
+
+          return Promise
+            .all([
+              databaseHandler.saveDialogScreenshot(dialogOne, dialogOne.screenshots[0]),
+              databaseHandler.saveDialogScreenshot(dialogTwo, dialogTwo.screenshots[0]),
+              databaseHandler.saveDialogScreenshot(dialogThree, dialogThree.screenshots[0]),
+            ])
+            .then(() => Promise.all([
+              databaseHandler.getDialogScreenshots(dialogOne, dialogOne.screenshots),
+              databaseHandler.getDialogScreenshots(dialogTwo, dialogTwo.screenshots),
+              databaseHandler.getDialogScreenshots(dialogThree, dialogThree.screenshots),
+            ]))
+            .then(([dialogOneScreenshots, dialogTwoScreenshots, dialogThreeScreenshots]) => {
+              expect(dialogOneScreenshots).to.be.lengthOf(1)
+              expect(dialogTwoScreenshots).to.be.lengthOf(1)
+              expect(dialogThreeScreenshots).to.be.lengthOf(1)
+            })
+            .then(() => databaseHandler.deleteDialogsScreenshots('1'))
+            .then(() => Promise.all([
+              databaseHandler.getDialogScreenshots(dialogOne, dialogOne.screenshots),
+              databaseHandler.getDialogScreenshots(dialogTwo, dialogTwo.screenshots),
+              databaseHandler.getDialogScreenshots(dialogThree, dialogThree.screenshots),
+            ]))
+            .then(([dialogOneScreenshots, dialogTwoScreenshots, dialogThreeScreenshots]) => {
+              expect(dialogOneScreenshots).to.be.lengthOf(0)
+              expect(dialogTwoScreenshots).to.be.lengthOf(0)
+              expect(dialogThreeScreenshots).to.be.lengthOf(1)
+            })
+        })
       })
 
+      /*
+       * SUITE RESULT
+       */
+
       describe('SuiteResult', () => {
-        it('should init, save, and should get suite results', () => {
+        it('should init, save, and get suite results', () => {
           /** @type {DialogDiffer.Suite} */
           const suiteOne = {
             options: {
@@ -319,6 +425,134 @@ describe('database handler', () => {
               expect(suiteResults[1].options.originalVersion).to.equal(1)
               expect(suiteResults[1].options.currentVersion).to.equal(2)
               expect(suiteResults[1].options.extra).to.eql({foo: 'bar'})
+            })
+        })
+
+        it('should get suite result', () => {
+          /** @type {DialogDiffer.Suite} */
+          const suiteOne = {
+            options: {
+              originalVersion: 1,
+              currentVersion: 2,
+            }
+          }
+
+          databaseHandler
+            .newSuiteResult(suiteOne)
+            .then(suiteResultDb => databaseHandler.getSuiteResult(String(suiteResultDb.id)))
+            .then(suiteResultDb => {
+              expect(suiteResultDb).to.be.an('object')
+              expect(suiteResultDb.options.originalVersion).to.equal(suiteOne.options.originalVersion)
+              expect(suiteResultDb.options.currentVersion).to.equal(suiteOne.options.currentVersion)
+            })
+        })
+
+        it('should delete suite result', () => {
+          /** @type {DialogDiffer.Suite} */
+          const suiteOne = {
+            options: {
+              originalVersion: 1,
+              currentVersion: 2,
+            }
+          }
+
+          /** @type {DialogDiffer.Suite} */
+          const suiteTwo = {
+            options: {
+              originalVersion: 1,
+              currentVersion: 2,
+            }
+          }
+
+          Promise
+            .all([
+              databaseHandler.newSuiteResult(suiteOne),
+              databaseHandler.newSuiteResult(suiteTwo),
+            ])
+            .then(([suiteResultDbOne, suiteResultDbTwo]) => Promise.all([
+              suiteResultDbOne.id,
+              suiteResultDbTwo.id,
+              databaseHandler.deleteSuiteResult(String(suiteResultDbOne.id))
+            ]))
+            .then(([suiteOneId, suiteTwoId]) => Promise.all([
+              databaseHandler.getSuiteResult(suiteOneId),
+              databaseHandler.getSuiteResult(suiteTwoId),
+            ]))
+            .then(([suiteResultDbOne, suiteResultDbTwo]) => {
+              expect(suiteResultDbOne).to.equal(null)
+
+              expect(suiteResultDbTwo).to.be.an('object')
+              expect(suiteResultDbTwo.options.originalVersion).to.equal(suiteTwo.options.originalVersion)
+              expect(suiteResultDbTwo.options.currentVersion).to.equal(suiteTwo.options.currentVersion)
+            })
+        })
+      })
+
+      /*
+       * SUITE RESULT
+       */
+
+      describe('DialogsResult', () => {
+        it('should save and get dialogs result', () => {
+          /** @type {DialogDiffer.Options} */
+          const options = {
+            sizes: [{width: 1, height: 1}],
+            originalVersion: '1',
+            currentVersion: '2',
+          }
+
+          /** @type {DialogDiffer.DialogsResult} */
+          const dialogsResult = {
+            dialogId: 'id',
+            original: {
+              id: 'id',
+              version: options.originalVersion,
+              screenshots: [{
+                base64: 'base64',
+                height: 1,
+                width: 1,
+              }]
+            },
+            current: {
+              id: 'id',
+              version: options.currentVersion,
+              screenshots: [{
+                base64: 'base64',
+                height: 1,
+                width: 1,
+              }]
+            },
+            originalVersion: options.originalVersion,
+            currentVersion: options.currentVersion,
+            result: 'result',
+            differ: [{
+              index: 0,
+              result: 'result',
+              base64: 'base64'
+            }],
+          }
+
+          return databaseHandler
+            .saveDialogsResult({options, dialogsResult})
+            .then(({dialogsResult: dialogsResultRet, dialogsResultDb}) => {
+              expect(dialogsResult).to.eql(dialogsResultRet)
+              expect(dialogsResultDb).to.be.an('object')
+
+              return databaseHandler.getDialogsResult({
+                options,
+                dialogId: dialogsResult.dialogId,
+                originalVersion: dialogsResult.originalVersion,
+                currentVersion: dialogsResult.currentVersion,
+              })
+            })
+            .then(dialogsResultDb => {
+              expect(dialogsResultDb).to.be.an('object')
+              expect(dialogsResultDb.dialogId).to.equal(dialogsResult.dialogId)
+              expect(dialogsResultDb.originalVersion).to.equal(dialogsResult.originalVersion)
+              expect(dialogsResultDb.currentVersion).to.equal(dialogsResult.currentVersion)
+              expect(dialogsResultDb.result).to.equal(dialogsResult.result)
+              expect(dialogsResultDb.differ).to.be.an('array')
+              expect(dialogsResultDb.differ).to.be.lengthOf(1)
             })
         })
       })

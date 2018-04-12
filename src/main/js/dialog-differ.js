@@ -391,12 +391,12 @@ class DialogDiffer {
 
       /** @type {Array<DialogDiffer.Database.DialogsResult>} */
       const dialogsResultsDb = await Promise.all(suiteResult.results.map(suiteResultDialogsResultDb => {
-        return this.databaseHandler.getDialogsResult(
-          suiteResult.options,
-          suiteResultDialogsResultDb.dialogId,
-          suiteResultDialogsResultDb.originalVersion,
-          suiteResultDialogsResultDb.currentVersion
-        )
+        return this.databaseHandler.getDialogsResult({
+          options: suiteResult.options,
+          dialogId: suiteResultDialogsResultDb.dialogId,
+          originalVersion: suiteResultDialogsResultDb.originalVersion,
+          currentVersion: suiteResultDialogsResultDb.currentVersion
+        })
       }))
 
       dialogsResultsDb.forEach((dialogsResultDb, i) => {
