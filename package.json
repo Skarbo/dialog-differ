@@ -14,7 +14,7 @@
     "base64-arraybuffer": "^0.1.5",
     "base64-img": "^1.0.3",
     "bluebird": "3.5.1",
-    "extend": "3.0.1",
+    "extend": "3.0.2",
     "lodash-id": "^0.14.0",
     "looks-same": "^3.3.0",
     "lowdb": "^0.16.2",
