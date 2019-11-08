@@ -24,10 +24,10 @@ const databaseLayers = [
     instance: new LowDbDatabaseLayer(),
     init: null,
   },
-  {
-    instance: new MongoDbDatabaseLayer(),
-    init: config.test.mongoUri,
-  },
+  // {
+  //   instance: new MongoDbDatabaseLayer(),
+  //   init: config.test.mongoUri,
+  // },
 ]
 
 describe('DialogDiffer', () => {
@@ -358,7 +358,7 @@ describe('DialogDiffer', () => {
           expect(retrievedSuiteResult.results[0].current.screenshots).to.have.lengthOf(0)
           expect(retrievedSuiteResult.results[0].current.error).to.be.an('object')
           expect(retrievedSuiteResult.results[0].current.error.code).to.equal(ERROR_CONSTANTS.SNAP_DIALOG_FROM_BROWSER_ERROR)
-          expect(retrievedSuiteResult.results[0].current.error.message).to.match(/waiting failed/)
+          expect(retrievedSuiteResult.results[0].current.error.message).to.match(/waiting.*?failed/)
 
           expect(retrievedSuiteResult.results[0].differ).to.have.lengthOf(1)
 
