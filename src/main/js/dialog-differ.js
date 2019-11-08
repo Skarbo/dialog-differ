@@ -443,6 +443,15 @@ class DialogDiffer {
   async deleteSuiteResult (suiteId) {
     return this.databaseHandler.deleteSuiteResult(suiteId)
   }
+
+  /**
+   * @param {Number} [keepLatest]
+   * @returns {Promise<Boolean>}
+   * @throws {DialogDiffer.Error}
+   */
+  async deleteSuiteResults (keepLatest = 3) {
+    return this.databaseHandler.deleteSuiteResults(keepLatest)
+  }
 }
 
 module.exports = DialogDiffer
