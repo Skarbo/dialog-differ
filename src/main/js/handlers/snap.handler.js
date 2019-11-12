@@ -48,11 +48,13 @@ function getElementClipEvaluate (selector) {
 }
 
 /**
- * Stop CSS animations
+ * Inject CSS
+ * - Stop CSS animations
+ * - Hide cursor
  */
-function stopCSSAnimationsEvaluate () {
+function injectCSSEvaluate () {
   /*eslint-disable */
-  const css = '* { animation: none!important; -webkit-animation: none!important }',
+  const css = '* { animation: none!important; -webkit-animation: none!important; caret-color: transparent!important; }',
     head = document.head || document.getElementsByTagName('head')[0],
     style = document.createElement('style')
 
@@ -380,8 +382,8 @@ class SnapHandler {
         timeout: this.config.browserTimeout,
       })
 
-      // stop CSS animation
-      await page.evaluate(stopCSSAnimationsEvaluate)
+      // inject CSS
+      await page.evaluate(injectCSSEvaluate)
 
       // wait for selector
       if (dialog.waitForSelector) {
@@ -538,8 +540,8 @@ class SnapHandler {
                 await page.reload()
               }
 
-              // stop CSS animation
-              await page.evaluate(stopCSSAnimationsEvaluate)
+              // inject CSS
+              await page.evaluate(injectCSSEvaluate)
 
               // wait for selector
               if (dialog.waitForSelector) {
@@ -607,12 +609,6 @@ class SnapHandler {
               try {
                 // close page
                 await page.close()
-
-                // // close browser
-                // await browser.close()
-                //
-                // // create browser
-                // browser = await createBrowser()
 
                 // create page
                 page = await createPage(browser)
@@ -752,8 +748,8 @@ class SnapHandler {
         timeout: this.config.browserTimeout,
       })
 
-      // stop CSS animations
-      await page.evaluate(stopCSSAnimationsEvaluate)
+      // inject CSS
+      await page.evaluate(injectCSSEvaluate)
 
       return page
     }
