@@ -1,7 +1,5 @@
 const SuiteHelper = require('./suite.helper')
 
-'use strict'
-
 /**
  * @param width
  * @param height
@@ -138,7 +136,6 @@ module.exports.collectSnappedDialogs = (options, dialogs, dialogsScreenshotsDb) 
       dialogsWithHash: Object.keys(nonSnappedCollection.dialogsWithHash).map(url => nonSnappedCollection.dialogsWithHash[url]),
     },
   }
-
 }
 
 /**

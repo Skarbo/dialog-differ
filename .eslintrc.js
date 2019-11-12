@@ -9,6 +9,7 @@ module.exports = {
     'no-mixed-operators': 'off',
     'brace-style': ['error', 'stroustrup'],
     'strict': ['error', 'never'],
-    'comma-dangle': ['error', 'only-multiline']
+    'comma-dangle': ['error', 'only-multiline'],
+    'no-console': 'error'
   }
 }

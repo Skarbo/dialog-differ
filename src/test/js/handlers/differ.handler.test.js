@@ -59,7 +59,7 @@ describe('differ handler', () => {
         expect(result).to.be.an('object')
         expect(result.isIdentical).to.equal(false)
         expect(result.base64).to.be.an('string')
-        console.log('diff', result.base64)
+        // console.log('diff', result.base64)
       })
     })
   })

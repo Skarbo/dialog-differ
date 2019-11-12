@@ -4,9 +4,10 @@
   "description": "Dialog differ",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --bail src/test/js/**/*.test.js",
+    "test": "mocha --bail --logLevel=none src/test/js/**/*.test.js",
     "build": "babel src/main/js/ --out-dir lib/main/js",
-    "version": "npm run test && npm run build && git add -A lib/"
+    "version": "npm run test && npm run build && git add -A lib/",
+    "eslint": "eslint src/main/js"
   },
   "author": "Kris Skarbo",
   "license": "ISC",
@@ -18,7 +19,7 @@
     "lodash-id": "^0.14.0",
     "looks-same": "^3.3.0",
     "lowdb": "^0.16.2",
-    "mongoose": "^5.1.3",
+    "mongoose": "^5.7.10",
     "puppeteer": "^2.0.0",
     "string-format-js": "^1.0.0",
     "tmp": "0.0.33"
@@ -39,6 +40,6 @@
     "eslint-plugin-node": "^5.1.1",
     "eslint-plugin-promise": "^3.8.0",
     "eslint-plugin-standard": "^3.1.0",
-    "mocha": "^3.5.0"
+    "mocha": "^6.2.2"
   }
 }

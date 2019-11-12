@@ -75,7 +75,7 @@ describe('DialogDiffer', () => {
           }
 
           const suiteResult = await dialogDiffer.diff(suite)
-          console.log('suiteResult', suiteResult)
+          // console.log('suiteResult', suiteResult)
           expect(suiteResult).to.be.an('object')
           expect(suiteResult.id).to.be.a('string')
           expect(suiteResult.status).to.equal(SUITE_CONSTANTS.FINISHED_STATUS)

@@ -163,7 +163,6 @@ class DifferHandler {
    * @throws {DialogDiffer.Error}
    */
   async differDialog (options, dialogOriginal, dialogCurrent, {onDiff = null} = {}) {
-
     // dialog deleted or added
     if (!dialogOriginal || !dialogCurrent) {
       const dialogsResult = this.createDialogsResult(
@@ -428,7 +427,6 @@ class DifferHandler {
 
     return suite
   }
-
 }
 
 module.exports = DifferHandler
