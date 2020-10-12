@@ -1,7 +1,5 @@
 const SuiteHelper = require('./suite.helper')
 
-'use strict'
-
 /**
  * @param width
  * @param height
@@ -87,44 +85,57 @@ module.exports.isDialogSnapped = (sizes, dialog, dialogScreenshotsDb) => {
  * @param {DialogDiffer.Options} options
  * @param {Array<DialogDiffer.Dialog>} dialogs
  * @param {Array<Array<DialogDiffer.Database.DialogScreenshot>>} dialogsScreenshotsDb
- * @return {{snappedCollection: Array<Array<DialogDiffer.SnappedCollectedDialog>|DialogDiffer.SnappedCollectedDialog>, nonSnappedCollection: Array<Array<DialogDiffer.SnappedCollectedDialog>|DialogDiffer.SnappedCollectedDialog>}}
+ * @return {{snappedCollection: {dialogs: Array<DialogDiffer.SnappedCollectedDialog>, dialogsWithHash: Array<Array<DialogDiffer.SnappedCollectedDialog>>}, nonSnappedCollection: {dialogs: Array<DialogDiffer.SnappedCollectedDialog>, dialogsWithHash: Array<Array<DialogDiffer.SnappedCollectedDialog>>}}}
  */
 module.exports.collectSnappedDialogs = (options, dialogs, dialogsScreenshotsDb) => {
-  const snappedCollection = {}
-  const nonSnappedCollection = {}
+  const snappedCollection = {
+    dialogs: [],
+    dialogsWithHash: {},
+  }
+  const nonSnappedCollection = {
+    dialogs: [],
+    dialogsWithHash: {},
+  }
 
   dialogs.forEach((dialog, i) => {
+    // snapped
     if (!options.isForceSnap && module.exports.isDialogSnapped(module.exports.getDialogSizes(options.sizes, dialog), dialog, dialogsScreenshotsDb[i])) {
       if (dialog.hash) {
-        if (!snappedCollection[dialog.url]) {
-          snappedCollection[dialog.url] = []
+        if (!snappedCollection.dialogsWithHash[dialog.url]) {
+          snappedCollection.dialogsWithHash[dialog.url] = []
         }
 
-        snappedCollection[dialog.url].push({dialog, screenshots: dialogsScreenshotsDb[i]})
+        snappedCollection.dialogsWithHash[dialog.url].push({dialog, screenshots: dialogsScreenshotsDb[i]})
       }
       else {
-        snappedCollection[dialog.url] = {dialog, screenshots: dialogsScreenshotsDb[i]}
+        snappedCollection.dialogs.push({dialog, screenshots: dialogsScreenshotsDb[i]})
       }
     }
+    // non snapped
     else {
       if (dialog.hash) {
-        if (!nonSnappedCollection[dialog.url]) {
-          nonSnappedCollection[dialog.url] = []
+        if (!nonSnappedCollection.dialogsWithHash[dialog.url]) {
+          nonSnappedCollection.dialogsWithHash[dialog.url] = []
         }
 
-        nonSnappedCollection[dialog.url].push({dialog})
+        nonSnappedCollection.dialogsWithHash[dialog.url].push({dialog})
       }
       else {
-        nonSnappedCollection[dialog.url] = {dialog}
+        nonSnappedCollection.dialogs.push({dialog})
       }
     }
   })
 
   return {
-    snappedCollection: Object.keys(snappedCollection).map(url => snappedCollection[url]),
-    nonSnappedCollection: Object.keys(nonSnappedCollection).map(url => nonSnappedCollection[url]),
+    snappedCollection: {
+      dialogs: snappedCollection.dialogs,
+      dialogsWithHash: Object.keys(snappedCollection.dialogsWithHash).map(url => snappedCollection.dialogsWithHash[url]),
+    },
+    nonSnappedCollection: {
+      dialogs: nonSnappedCollection.dialogs,
+      dialogsWithHash: Object.keys(nonSnappedCollection.dialogsWithHash).map(url => nonSnappedCollection.dialogsWithHash[url]),
+    },
   }
-
 }
 
 /**

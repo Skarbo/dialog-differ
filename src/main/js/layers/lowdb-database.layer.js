@@ -354,7 +354,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
    * @returns {Promise<Boolean>}
    */
   deleteSuiteResult (suiteId) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         db.get(SUITE_RESULT_DB)
           .remove({
@@ -362,7 +362,7 @@ class LowDbDatabaseLayer extends AbstractDatabaseLayer {
           })
           .write()
 
-        fulfill(true)
+        resolve(true)
       }
       catch (err) {
         reject(err)

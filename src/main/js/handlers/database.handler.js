@@ -425,6 +425,24 @@ class DatabaseHandler {
         })
     })
   }
+
+  /**
+   * @param {Number} keepLatest
+   * @returns {Promise<Boolean>}
+   * @throws {DialogDiffer.Error}
+   */
+  async deleteSuiteResults (keepLatest) {
+    try {
+      const suiteResults = await this.getLastSuiteResults()
+
+      await Promise.all(suiteResults.slice(keepLatest).map(suiteResult => this.deleteSuiteResult(suiteResult.id)))
+
+      return true
+    }
+    catch (err) {
+      throw ErrorHelper.createError(err, 'Could not delete suite result', ERROR_CONSTANTS.DELETE_SUITE_RESULTS_DB_ERROR, {keepLatest})
+    }
+  }
 }
 
 module.exports = DatabaseHandler

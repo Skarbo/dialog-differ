@@ -67,6 +67,7 @@ function isLogLevel (level) {
 
 module.exports.log = (tag, context, message, code, ...args) => {
   if (isLogLevel(LOGGER_CONSTANTS.DEBUG_LOG_LEVEL)) {
+    // eslint-disable-next-line no-console
     console.log.apply(null, [createMessage({type: 'LOG', tag, context, code, message})].concat(args))
   }
 
@@ -81,6 +82,7 @@ module.exports.log = (tag, context, message, code, ...args) => {
 
 module.exports.warn = (tag, context, message, code, ...args) => {
   if (isLogLevel(LOGGER_CONSTANTS.INFO_LOG_LEVEL)) {
+    // eslint-disable-next-line no-console
     console.warn.apply(null, [createMessage({type: 'WARN', tag, context, code, message})].concat(args))
   }
 
@@ -95,6 +97,7 @@ module.exports.warn = (tag, context, message, code, ...args) => {
 
 module.exports.error = (tag, context, message, code, ...args) => {
   if (isLogLevel(LOGGER_CONSTANTS.ERROR_LOG_LEVEL)) {
+    // eslint-disable-next-line no-console
     console.error.apply(null, [createMessage({type: 'ERROR', tag, context, code, message})].concat(args))
   }
 
@@ -109,6 +112,7 @@ module.exports.error = (tag, context, message, code, ...args) => {
 
 module.exports.info = (tag, context, message, code, ...args) => {
   if (isLogLevel(LOGGER_CONSTANTS.INFO_LOG_LEVEL)) {
+    // eslint-disable-next-line no-console
     console.info.apply(null, [createMessage({type: 'INFO', tag, context, code, message})].concat(args))
   }
 

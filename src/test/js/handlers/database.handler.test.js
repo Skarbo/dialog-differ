@@ -33,13 +33,16 @@ function assertDialogScreenshot (dialogScreenshotsDb, dialog, dialogScreenshots)
   }
 }
 
-const layers = [{
-  instance: new LowDbDatabaseLayer(),
-  init: null,
-}, {
-  instance: new MongoDbDatabaseLayer(),
-  init: config.test.mongoUri,
-}]
+const layers = [
+  {
+    instance: new LowDbDatabaseLayer(),
+    init: null,
+  },
+  // {
+  //   instance: new MongoDbDatabaseLayer(),
+  //   init: config.test.mongoUri,
+  // }
+]
 
 describe('database handler', () => {
   layers.forEach(({instance, init}) => {

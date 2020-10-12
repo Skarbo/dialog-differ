@@ -184,7 +184,7 @@ describe('snap handler', () => {
       return snapHandler
         .snapSuiteDialogs(options, [firstDialog, secondDialog])
         .then(dialogs => {
-          console.log(JSON.stringify(dialogs, null, 2))
+          // console.log(JSON.stringify(dialogs, null, 2))
 
           expect(dialogs).to.be.an('array')
           expect(dialogs).to.have.lengthOf(2)
@@ -227,7 +227,7 @@ describe('snap handler', () => {
       return snapHandler
         .snapSuiteDialogs(options, [firstDialog, secondDialog, secondThird])
         .then(dialogs => {
-          console.log(JSON.stringify(dialogs, null, 2))
+          // console.log(JSON.stringify(dialogs, null, 2))
 
           expect(dialogs).to.be.an('array')
           expect(dialogs).to.have.lengthOf(3)
