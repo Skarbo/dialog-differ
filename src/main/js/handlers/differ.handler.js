@@ -1,9 +1,8 @@
 const TAG = 'Differ'
 
+const fs = require('fs')
 const tmp = require('tmp')
-const path = require('path')
 const looksSame = require('looks-same')
-const base64Img = require('base64-img')
 const Promise = require('bluebird')
 
 const LOGGER_CONSTANTS = require('../constants/logger.constants')
@@ -47,7 +46,7 @@ class DifferHandler {
 
       screenshot.path = tmpFile.name
       screenshot.removeCallback = tmpFile.removeCallback
-      base64Img.imgSync(screenshot.base64, path.dirname(tmpFile.name), path.basename(tmpFile.name, '.png'))
+      fs.writeFileSync(tmpFile.name, screenshot.base64.replace(/^data:image\/png;base64,/, ''), 'base64')
     })
 
     return dialog
@@ -145,7 +144,7 @@ class DifferHandler {
 
               resolve({
                 isIdentical: false,
-                base64: base64Img.base64Sync(tmpFile.name)
+                base64: fs.readFileSync(tmpFile.name, 'utf-8')
               })
               removeTmpFiles()
             })

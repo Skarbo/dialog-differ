@@ -145,7 +145,7 @@ describe('snap handler', () => {
 
       return snapHandler.snapDialog(options, dialog)
         .then(dialog => {
-          //console.log( JSON.stringify( dialog, null, 2 ) );
+          // console.log( JSON.stringify( dialog, null, 2 ) );
 
           expect(dialog).to.be.an('object')
 
@@ -368,14 +368,14 @@ describe('snap handler', () => {
         id: '1',
         url: createDialogURL('dialog-resize.html'),
         resize: function () {
-          /*eslint-disable */
+          /* eslint-disable */
           var resizeElement = document.querySelector('#resize')
 
           return {
             height: resizeElement.clientHeight,
             width: resizeElement.clientWidth,
           }
-          /*eslint-enable */
+          /* eslint-enable */
         }
       }
 

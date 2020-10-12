@@ -398,7 +398,7 @@ class SnapHandler {
         await page.setViewport(size)
 
         // wait for timeout
-        await page.waitFor(dialog.timeout || 0)
+        await page.waitForTimeout(dialog.timeout || 0)
 
         // resize
         if (dialog.resize) {
@@ -556,7 +556,7 @@ class SnapHandler {
                 await page.setViewport(size)
 
                 // wait for timeout
-                await page.waitFor(dialog.timeout || 0)
+                await page.waitForTimeout(dialog.timeout || 0)
 
                 // resize
                 if (dialog.resize) {
@@ -822,7 +822,7 @@ class SnapHandler {
                     await page.setViewport(size)
 
                     // wait for timeout
-                    await page.waitFor(dialog.timeout || 0)
+                    await page.waitForTimeout(dialog.timeout || 0)
 
                     // resize
                     if (dialog.resize) {
