@@ -79,16 +79,8 @@ class DifferHandler {
    */
   differDialogScreenshot (screenshotOriginal, screenshotCurrent) {
     return new Promise((resolve, reject) => {
-      const tmpFile = tmp.fileSync({
-        postfix: '.png'
-      })
-
       const removeTmpFiles = () => {
         try {
-          if (tmpFile.removeCallback) {
-            tmpFile.removeCallback()
-          }
-
           if (screenshotOriginal.removeCallback) {
             screenshotOriginal.removeCallback()
             delete screenshotOriginal.path
@@ -131,11 +123,12 @@ class DifferHandler {
             looksSame.createDiff({
               reference: screenshotCurrent.path,
               current: screenshotOriginal.path,
-              diff: tmpFile.name,
               highlightColor: this.config.diffHighlightColor,
               strict: false,
               tolerance: this.config.diffTolerance,
-            }, (err) => {
+            }, (err, buffer) => {
+              const diff = Buffer.from(buffer)
+
               if (err) {
                 reject(err)
                 removeTmpFiles()
@@ -144,7 +137,7 @@ class DifferHandler {
 
               resolve({
                 isIdentical: false,
-                base64: fs.readFileSync(tmpFile.name, 'utf-8')
+                base64: `data:image/png;base64,${diff.toString('base64')}`
               })
               removeTmpFiles()
             })
