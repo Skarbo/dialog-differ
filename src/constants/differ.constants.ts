@@ -1,0 +1,5 @@
+export const DELETED_DIFFER_RESULT = 'deleted'
+export const ADDED_DIFFER_RESULT = 'added'
+export const CHANGED_DIFFER_RESULT = 'changed'
+export const IDENTICAL_DIFFER_RESULT = 'identical'
+export const ERROR_DIFFER_RESULT = 'error'

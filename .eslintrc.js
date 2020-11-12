@@ -1,14 +1,27 @@
 module.exports = {
+  parser: '@typescript-eslint/parser',
+  extends: 'plugin:@typescript-eslint/recommended',
   root: true,
   env: {
-    node: true
+    node: true,
+    es6: true,
   },
-  extends: 'standard',
-  // add your custom rules here
+  parserOptions: {
+    sourceType: 'module',
+    ecmaVersion: 2018
+  },
   rules: {
-    'no-mixed-operators': 'off',
-    'brace-style': ['error', 'stroustrup'],
-    'strict': ['error', 'never'],
-    'comma-dangle': ['error', 'only-multiline']
+    'no-console': 'error',
+    'quotes': [
+      'error',
+      'single'
+    ],
+    'semi': [
+      'error',
+      'never'
+    ],
+    'comma-dangle': ['error', 'only-multiline'],
+    '@typescript-eslint/no-var-requires': 'off',
+    '@typescript-eslint/ban-ts-comment': 'off'
   }
 }

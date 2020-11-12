@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "target": "ESNext",
+    "outDir": "./lib",
+    "declaration": true,
+    "moduleResolution": "Node",
+    "noImplicitAny": true,
+    "allowJs": true,
+    "types": [
+      "node",
+      "mocha"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "removeComments": true
+  },
+  "include": [
+    "src/**/*"
+  ]
+}
