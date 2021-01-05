@@ -60,6 +60,7 @@ export interface DialogDifferDialog {
   error?: DialogDifferError
   screenshots?: DialogDifferDialogScreenshot[]
   options?: DialogDifferDialogOptions
+  extra?: Record<string, unknown>
 }
 
 export interface DialogDifferOptions {
