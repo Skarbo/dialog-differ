@@ -1,6 +1,6 @@
 {
   "name": "dialog-differ",
-  "version": "2.0.0-1",
+  "version": "2.0.0",
   "description": "Dialog differ",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
